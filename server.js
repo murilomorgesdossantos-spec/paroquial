@@ -27,9 +27,9 @@ app.get('/api/pessoas', async (req, res) => {
     }
 });
 
-// --- ROTA PADRÃO ---
-// Qualquer outra rota que não seja a API, devolve o site (index.html)
-app.get('*', (req, res) => {
+// ROTA PADRÃO
+// Mudamos de '*' para '(.*)' para corrigir o erro do PathError
+app.get(/(.*)/, (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
