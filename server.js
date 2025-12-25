@@ -1,39 +1,62 @@
 const express = require('express');
-const pool = require('./db');
-const path = require('path');
 const cors = require('cors');
+const db = require('./db'); // Seu arquivo de conexão com o banco
 
 const app = express();
-const port = process.env.PORT || 3000;
 
-// Habilita conexões e leitura de JSON
-app.use(cors());
 app.use(express.json());
+app.use(cors());
 
-// Serve os arquivos do site (HTML, CSS, JS) que estão na pasta 'public'
-app.use(express.static(path.join(__dirname, 'public')));
+// --- MUDANÇA 1: Servir os arquivos da pasta 'public' ---
+app.use(express.static('public')); 
+// Isso faz o http://localhost:3001 abrir seu site automaticamente!
 
-// --- ROTA API: Busca as pessoas no Banco de Dados ---
-app.get('/api/pessoas', async (req, res) => {
-    try {
-        // Faz a consulta no banco de dados
-        const result = await pool.query('SELECT * FROM servos');
-        
-        // Devolve os dados para o frontend (seu script.js)
-        res.json(result.rows);
-    } catch (err) {
-        console.error('Erro ao buscar dados no banco:', err);
-        res.status(500).json({ error: 'Erro interno do servidor ao buscar dados.' });
-    }
+// --- ROTAS DO BANCO DE DADOS ---
+
+// Rota para buscar todos os servos (Você provavelmente já tinha essa)
+app.get('/servos', (req, res) => {
+    const sql = "SELECT * FROM servos";
+    db.query(sql, (err, result) => {
+        if (err) return res.status(500).send(err);
+        res.send(result);
+    });
 });
 
-// ROTA PADRÃO
-// Mudamos de '*' para '(.*)' para corrigir o erro do PathError
-app.get(/(.*)/, (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+// --- NOVAS ROTAS (ADICIONE ISSO PARA O GERENCIADOR FUNCIONAR) ---
+
+// 1. Adicionar Servo
+app.post('/servos', (req, res) => {
+    const { nome } = req.body;
+    const sql = "INSERT INTO servos (nome, funcoes) VALUES (?, '[]')";
+    db.query(sql, [nome], (err, result) => {
+        if (err) return res.status(500).send(err);
+        res.send({ id: result.insertId, nome, funcoes: [] });
+    });
 });
 
-// Inicia o servidor
-app.listen(port, () => {
-    console.log(`Servidor rodando na porta ${port}`);
+// 2. Deletar Servo
+app.delete('/servos/:id', (req, res) => {
+    const { id } = req.params;
+    const sql = "DELETE FROM servos WHERE id = ?";
+    db.query(sql, [id], (err, result) => {
+        if (err) return res.status(500).send(err);
+        res.send({ message: "Deletado com sucesso" });
+    });
+});
+
+// 3. Atualizar Funções
+app.put('/servos/:id', (req, res) => {
+    const { id } = req.params;
+    const { funcoes } = req.body; 
+    const funcoesString = JSON.stringify(funcoes); // Converte array para texto
+    const sql = "UPDATE servos SET funcoes = ? WHERE id = ?";
+    db.query(sql, [funcoesString, id], (err, result) => {
+        if (err) return res.status(500).send(err);
+        res.send({ message: "Atualizado" });
+    });
+});
+
+// Iniciar servidor
+app.listen(3001, () => {
+    console.log("Servidor rodando em http://localhost:3001");
 });

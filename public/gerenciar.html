@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Gerenciar Servos</title>
+    <style>
+        /* Estilos CSS Básicos para ficar bonito igual ao anterior */
+        body { font-family: sans-serif; background: #f4f4f9; }
+        
+        /* Botão Principal */
+        .btn-gerenciar {
+            width: 100%; padding: 10px; background: #6b21a8; color: white;
+            border: none; border-radius: 5px; cursor: pointer; font-weight: bold; margin-top: 15px;
+        }
+        .btn-gerenciar:hover { background: #581c87; }
+
+        /* Modal (Janela) */
+        #modalOverlay {
+            display: none; /* Começa escondido */
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); align-items: center; justify-content: center;
+        }
+        .modal-content {
+            background: white; width: 800px; height: 80%; padding: 20px;
+            border-radius: 10px; display: flex; flex-direction: column;
+        }
+
+        /* Tabela */
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background: #f3f4f6; }
+
+        /* Tags de Funções */
+        .tag {
+            padding: 2px 6px; border-radius: 4px; border: 1px solid #ccc;
+            font-size: 12px; margin-right: 4px; cursor: pointer; display: inline-block; margin-bottom: 2px;
+        }
+        .tag.ativa {
+            background: #e9d5ff; border-color: #a855f7; color: #6b21a8; font-weight: bold;
+        }
+
+        /* Inputs e Botões Gerais */
+        .input-group { display: flex; gap: 10px; margin-bottom: 20px; background: #f9fafb; padding: 10px; border-radius: 5px; }
+        input { flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+        .btn-add { background: #16a34a; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; }
+        .btn-del { background: #fca5a5; color: #991b1b; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; }
+        .close { float: right; cursor: pointer; font-size: 20px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <h3>Banco de Servos</h3>
+        <button class="btn-gerenciar" onclick="abrirModal()">⚙️ Gerenciar Banco</button>
+    </div>
+
+    <div id="modalOverlay">
+        <div class="modal-content">
+            <div style="display: flex; justify-content: space-between;">
+                <h2>Gerenciar Equipe</h2>
+                <span class="close" onclick="fecharModal()">&times;</span>
+            </div>
+
+            <div class="input-group">
+                <input type="text" id="novoNomeInput" placeholder="Nome do novo servo...">
+                <button class="btn-add" onclick="adicionarServo()">+ Adicionar</button>
+            </div>
+
+            <div style="overflow-y: auto; flex: 1;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Nome</th>
+                            <th>Funções (Clique para alternar)</th>
+                            <th style="text-align: center;">Ação</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabelaCorpo">
+                        </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- CONFIGURAÇÃO ---
+        const API_URL = 'http://localhost:3001/servos'; // Verifique sua porta
+        const funcoesDisponiveis = ["Cerimonial", "Turiferario", "Naveteiro", "Cruciferario", "Librifero", "Microfone", "Altar", "Intencoes", "Ofertorio", "Cerifario"];
+
+        // --- LÓGICA DE ABRIR/FECHAR ---
+        function abrirModal() {
+            document.getElementById('modalOverlay').style.display = 'flex';
+            carregarServos(); // Carrega a lista ao abrir
+        }
+        function fecharModal() {
+            document.getElementById('modalOverlay').style.display = 'none';
+        }
+
+        // --- 1. LER (GET) ---
+        async function carregarServos() {
+            const res = await fetch(API_URL); // Se tiver uma rota GET específica, use ela
+            const servos = await res.json();
+            renderizarTabela(servos);
+        }
+
+        // --- RENDERIZAR NA TELA ---
+        function renderizarTabela(servos) {
+            const tbody = document.getElementById('tabelaCorpo');
+            tbody.innerHTML = ''; // Limpa antes de recriar
+
+            servos.forEach(servo => {
+                // Trata as funções (converte de string JSON para array se necessário)
+                let funcoesAtuais = [];
+                try {
+                    funcoesAtuais = typeof servo.funcoes === 'string' ? JSON.parse(servo.funcoes) : servo.funcoes;
+                } catch(e) { funcoesAtuais = []; }
+                if(!Array.isArray(funcoesAtuais)) funcoesAtuais = [];
+
+                const tr = document.createElement('tr');
+                
+                // Coluna Nome
+                const tdNome = document.createElement('td');
+                tdNome.textContent = servo.nome;
+
+                // Coluna Funções (Tags clicáveis)
+                const tdFuncoes = document.createElement('td');
+                funcoesDisponiveis.forEach(funcao => {
+                    const span = document.createElement('span');
+                    span.textContent = funcao;
+                    span.className = 'tag ' + (funcoesAtuais.includes(funcao) ? 'ativa' : '');
+                    span.onclick = () => toggleFuncao(servo.id, funcao, funcoesAtuais);
+                    tdFuncoes.appendChild(span);
+                });
+
+                // Coluna Deletar
+                const tdAcao = document.createElement('td');
+                tdAcao.style.textAlign = 'center';
+                const btnDel = document.createElement('button');
+                btnDel.textContent = '🗑️';
+                btnDel.className = 'btn-del';
+                btnDel.onclick = () => deletarServo(servo.id);
+                tdAcao.appendChild(btnDel);
+
+                tr.append(tdNome, tdFuncoes, tdAcao);
+                tbody.appendChild(tr);
+            });
+        }
+
+        // --- 2. ADICIONAR (POST) ---
+        async function adicionarServo() {
+            const input = document.getElementById('novoNomeInput');
+            const nome = input.value;
+            if (!nome) return;
+
+            await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ nome: nome })
+            });
+            
+            input.value = '';
+            carregarServos(); // Recarrega a lista
+        }
+
+        // --- 3. DELETAR (DELETE) ---
+        async function deletarServo(id) {
+            if(!confirm("Tem certeza que deseja excluir?")) return;
+            
+            await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
+            carregarServos();
+        }
+
+        // --- 4. ATUALIZAR FUNÇÃO (PUT) ---
+        async function toggleFuncao(id, funcao, funcoesAtuais) {
+            // Lógica de adicionar ou remover do array
+            let novasFuncoes;
+            if (funcoesAtuais.includes(funcao)) {
+                novasFuncoes = funcoesAtuais.filter(f => f !== funcao);
+            } else {
+                novasFuncoes = [...funcoesAtuais, funcao];
+            }
+
+            await fetch(`${API_URL}/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ funcoes: novasFuncoes })
+            });
+            
+            carregarServos(); // Recarrega para atualizar a cor
+        }
+    </script>
+</body>
+</html>
