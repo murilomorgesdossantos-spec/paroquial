@@ -5,7 +5,7 @@ const REGRAS_PADRAO = {
     'Ofertorio': 4, 'Cerifario': 6
 };
 
-// Funções disponíveis para aparecerem nos botões
+// Pega os nomes das chaves para usar nos botões
 const TODAS_FUNCOES = Object.keys(REGRAS_PADRAO);
 
 let BANCO_PESSOAS = []; 
@@ -25,23 +25,24 @@ async function carregarPessoasDoBanco() {
         
         const dadosBrutos = await response.json();
         
-        // CONVERSÃO DE DADOS (Banco em Inglês -> Frontend)
+        // --- AQUI ESTÁ A CORREÇÃO MÁGICA ---
         BANCO_PESSOAS = dadosBrutos.map(servo => {
             let funcoesReais = [];
             try {
-                // Tenta ler 'roles' (Inglês)
+                // Tenta ler 'roles' (Inglês) ou 'funcoes' (Português)
                 const rawRoles = servo.roles || servo.funcoes || '[]';
                 funcoesReais = typeof rawRoles === 'string' ? JSON.parse(rawRoles) : rawRoles;
             } catch (e) { funcoesReais = []; }
 
             return {
                 id: servo.id,
-                name: servo.name || servo.nome, // Aceita name (novo) ou nome (antigo)
+                // CORREÇÃO: Usa 'name' (do banco PostgreSQL)
+                name: servo.name || servo.nome || "Sem Nome", 
                 roles: Array.isArray(funcoesReais) ? funcoesReais : []
             };
         });
         
-        // Atualiza UI principal
+        // Atualiza Sidebar
         document.getElementById('totalServos').innerText = `${BANCO_PESSOAS.length} servos cadastrados`;
         atualizarSidebar(BANCO_PESSOAS);
 
@@ -56,18 +57,18 @@ async function carregarPessoasDoBanco() {
     }
 }
 
-// --- SIDEBAR ---
+// --- SIDEBAR (Renderiza a lista lateral) ---
 function atualizarSidebar(lista) {
     const container = document.getElementById('lista-servos-container');
     container.innerHTML = ''; 
 
     lista.forEach(pessoa => {
         const divItem = document.createElement('div');
-        divItem.className = 'servo-item';
+        divItem.className = 'servo-item'; // Classe que estava faltando o CSS
         
         const spanNome = document.createElement('span');
         spanNome.className = 'servo-name';
-        spanNome.innerText = pessoa.name; // CORREÇÃO AQUI TAMBÉM
+        spanNome.innerText = pessoa.name; 
 
         const divTags = document.createElement('div');
         divTags.className = 'roles-tags';
@@ -87,7 +88,7 @@ function atualizarSidebar(lista) {
 }
 
 // ============================================================
-// === LÓGICA DO MODAL (GERENCIAMENTO) - NOVO CÓDIGO AQUI ===
+// === LÓGICA DO MODAL (GERENCIAMENTO) ===
 // ============================================================
 
 function abrirModalGerenciar() {
@@ -106,10 +107,10 @@ function renderizarTabelaGerenciamento() {
     BANCO_PESSOAS.forEach(servo => {
         const tr = document.createElement('tr');
         
-        // 1. Coluna Nome (CORRIGIDO PARA .name)
+        // 1. Coluna Nome
         const tdNome = document.createElement('td');
         tdNome.style.fontWeight = "600";
-        tdNome.textContent = servo.name; 
+        tdNome.textContent = servo.name; // Usa .name
 
         // 2. Coluna Funções
         const tdFuncoes = document.createElement('td');
@@ -129,7 +130,7 @@ function renderizarTabelaGerenciamento() {
         const tdAcao = document.createElement('td');
         tdAcao.style.textAlign = 'center';
         const btnDel = document.createElement('button');
-        btnDel.innerHTML = '🗑️'; // Ou ícone SVG
+        btnDel.innerHTML = '🗑️'; 
         btnDel.className = 'btn-del';
         btnDel.onclick = () => deletarServo(servo.id);
         tdAcao.appendChild(btnDel);
@@ -145,7 +146,7 @@ async function adicionarServo() {
     const nome = input.value;
     if (!nome) return;
 
-    // Envia 'nome' (Backend espera 'nome' no body, mas salva em 'name' no banco)
+    // O backend espera { nome: ... } mas salva como 'name'
     await fetch('/servos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -179,14 +180,14 @@ async function toggleFuncaoServo(servo, funcao) {
         body: JSON.stringify({ funcoes: novasFuncoes })
     });
     
-    // Atualiza localmente para ser rápido, depois recarrega
+    // Atualiza localmente para ser rápido e visual
     servo.roles = novasFuncoes;
-    renderizarTabelaGerenciamento(); // Atualiza só o modal visualmente
-    carregarPessoasDoBanco(); // Atualiza tudo em background
+    renderizarTabelaGerenciamento(); 
+    carregarPessoasDoBanco(); // Garante sincronia
 }
 
 // ============================================================
-// === LÓGICA DE ESCALA (MANTIDA IGUAL) ===
+// === LÓGICA DE ESCALA (MANTIDA) ===
 // ============================================================
 
 function mudarTipoMissa() {
@@ -254,14 +255,12 @@ function gerarEscala() {
 
     for (const [funcao, quantidade] of Object.entries(regrasAtuais)) {
         for (let i = 0; i < quantidade; i++) {
-            // Tenta achar alguém que tenha a função E não trabalhou nela semana passada
             let candidatoIndex = poolDisponivel.findIndex(p => 
                 p.roles.includes(funcao) && 
                 !idsUsados.has(p.id) &&
                 historicoPassado[p.id] !== funcao
             );
 
-            // Se não achar, pega qualquer um que tenha a função
             if (candidatoIndex === -1) {
                 candidatoIndex = poolDisponivel.findIndex(p => 
                     p.roles.includes(funcao) && !idsUsados.has(p.id)
@@ -292,7 +291,7 @@ function gerarEscala() {
         const tdNome = document.createElement('td');
         if (item.pessoa) {
             tdNome.className = 'text-name';
-            tdNome.innerText = item.pessoa.name; // CORRIGIDO PARA .name
+            tdNome.innerText = item.pessoa.name; 
             if (historicoPassado[item.pessoa.id] === item.cargo) {
                 tdNome.innerHTML += ' <span style="font-size:0.7em; color:orange;">(Repetindo)</span>';
             }

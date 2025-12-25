@@ -18,21 +18,7 @@
         </div>
         
         <div style="padding: 0 20px 15px 20px;">
-            <button onclick="abrirModalGerenciar()" style="
-                width: 100%; 
-                padding: 10px; 
-                background-color: #6b21a8; 
-                color: white; 
-                border: 1px solid rgba(255,255,255,0.1); 
-                border-radius: 6px; 
-                cursor: pointer; 
-                font-weight: 600; 
-                font-family: 'Inter', sans-serif;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                gap: 8px;
-                transition: background-color 0.2s;">
+            <button onclick="abrirModalGerenciar()" class="btn-sidebar-action">
                 ⚙️ Gerenciar Banco
             </button>
         </div>
@@ -59,7 +45,10 @@
                         <option value="comum">Missa Comum</option>
                     </select>
                 </div>
-                <div id="config-container" class="inputs-grid"></div>
+
+                <div id="config-container" class="inputs-grid">
+                    </div>
+
                 <div class="action-bar">
                     <span class="vagas-info">Vagas totais: <strong id="requiredSlots">0</strong></span>
                     <div class="buttons">
@@ -83,7 +72,9 @@
                         </thead>
                         <tbody id="tableBody">
                             <tr>
-                                <td colspan="3" class="empty-state">Configure as vagas e clique em "Gerar Escala".</td>
+                                <td colspan="3" class="empty-state">
+                                    Configure as vagas e clique em "Gerar Escala".
+                                </td>
                             </tr>
                         </tbody>
                     </table>
@@ -109,9 +100,9 @@
             <table class="table-modal">
                 <thead>
                     <tr>
-                        <th>Nome</th>
+                        <th style="width: 30%">Nome</th>
                         <th>Funções (Clique para alternar)</th>
-                        <th style="text-align: center;">Ação</th>
+                        <th style="width: 60px; text-align: center;">Ação</th>
                     </tr>
                 </thead>
                 <tbody id="tabelaGerenciarCorpo">
@@ -122,5 +113,6 @@
 </div>
 
 <script src="script.js"></script>
+
 </body>
 </html>
