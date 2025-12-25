@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Escala Litúrgica</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>Escala Litúrgica</h1>
+        <p>Gerenciador de Servos e Funções</p>
+    </header>
+
+    <div class="controls">
+        
+        <div class="config-section">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h4 class="section-title" style="margin: 0;">Configurar Vagas por Função</h4>
+                
+                <select id="tipoMissa" onchange="mudarTipoMissa()" class="select-missa">
+                    <option value="solene">Missa Solene (Completa)</option>
+                    <option value="comum">Missa Comum (Sem Turíbulo/Naveta)</option>
+                </select>
+            </div>
+
+            <div id="config-container" class="config-grid">
+                </div>
+            <div class="total-info">
+                Total de vagas configuradas: <strong id="requiredSlots">0</strong>
+            </div>
+        </div>
+
+        <hr style="border: 0; border-top: 1px solid #e5e7eb; margin: 20px 0;">
+
+        <div class="input-group">
+            <div class="button-group">
+                <button onclick="gerarEscala()">Gerar Escala</button>
+                <button onclick="confirmarEscala()" class="btn-purple">Confirmar Escala Atual</button>
+            </div>
+        </div>
+        
+        <div class="info-box">
+            <div id="msgSalvo" style="display: none;">
+                Escala salva! A próxima geração evitará repetir estas funções para as mesmas pessoas.
+            </div>
+        </div>
+    </div>
+
+    <div class="results">
+        <h3>Escala Gerada:</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Função</th>
+                    <th>Servo Escalado</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody">
+                <tr>
+                    <td colspan="3" class="empty-state">
+                        Configure as vagas acima e clique em "Gerar".
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script src="script.js"></script>
+
+</body>
+</html>
