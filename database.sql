@@ -1,0 +1,62 @@
+-- 1. Cria a tabela 'servos' se ela não existir
+CREATE TABLE IF NOT EXISTS servos (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    roles TEXT[] -- O tipo TEXT[] permite salvar uma lista de funções (ex: Cerimonial, Altar)
+);
+
+-- 2. Limpa dados antigos para não duplicar (Opcional, bom para testes)
+TRUNCATE TABLE servos RESTART IDENTITY;
+
+-- 3. Insere as 50 pessoas (Seed Data)
+INSERT INTO servos (name, roles) VALUES
+('Murilo Morges', ARRAY['Cerimonial', 'Turiferario', 'Altar']),
+('Ana Costa', ARRAY['Cerimonial', 'Microfone']),
+('Diego Martins', ARRAY['Cerimonial', 'Turiferario']),
+('Julia Lima', ARRAY['Cerimonial', 'Librifero']),
+('Roberto Alves', ARRAY['Cerimonial', 'Naveteiro']),
+('Fernanda Rocha', ARRAY['Cerimonial', 'Intencoes']),
+('Felipe Melo', ARRAY['Turiferario', 'Naveteiro']),
+('Pedro Santos', ARRAY['Naveteiro', 'Cruciferario']),
+('Otavio Pinto', ARRAY['Turiferario', 'Cerifario']),
+('Paulo Mendes', ARRAY['Cruciferario', 'Cerifario']),
+('Lucas Pereira', ARRAY['Naveteiro', 'Altar']),
+('Marcos Rocha', ARRAY['Cruciferario', 'Cerifario']),
+('Gabriel Souza', ARRAY['Turiferario', 'Ofertorio']),
+('Ricardo Lima', ARRAY['Naveteiro', 'Librifero']),
+('Maria Oliveira', ARRAY['Librifero', 'Intencoes', 'Microfone']),
+('Sara Campos', ARRAY['Microfone', 'Intencoes']),
+('Larissa Reis', ARRAY['Intencoes', 'Microfone']),
+('Carla Dias', ARRAY['Intencoes', 'Altar']),
+('Beatriz Silva', ARRAY['Librifero', 'Microfone']),
+('Sofia Gomes', ARRAY['Librifero', 'Ofertorio']),
+('Helena Martins', ARRAY['Microfone', 'Cerifario']),
+('Laura Azevedo', ARRAY['Intencoes', 'Ofertorio']),
+('João Silva', ARRAY['Cerifario', 'Ofertorio']),
+('Tiago Souza', ARRAY['Cerifario', 'Ofertorio']),
+('Bruno Alves', ARRAY['Cerifario', 'Ofertorio']),
+('Rafael Cruz', ARRAY['Cerifario', 'Altar']),
+('Gabriela Nunes', ARRAY['Ofertorio', 'Librifero']),
+('Renata Farias', ARRAY['Ofertorio', 'Altar']),
+('Vitor Hugo', ARRAY['Cerifario']),
+('Amanda Luz', ARRAY['Ofertorio']),
+('Gustavo Henrique', ARRAY['Cerifario', 'Altar']),
+('Enzo Gabriel', ARRAY['Cerifario', 'Cruciferario']),
+('Arthur Miguel', ARRAY['Cerifario', 'Ofertorio']),
+('Theo Nogueira', ARRAY['Altar', 'Ofertorio']),
+('Heitor Vieira', ARRAY['Cerifario', 'Naveteiro']),
+('Nicolas Ramos', ARRAY['Cerifario']),
+('Lorenzo Pires', ARRAY['Ofertorio', 'Cerifario']),
+('Samuel Lopes', ARRAY['Altar', 'Cerifario']),
+('Benjamin Duarte', ARRAY['Cerifario', 'Ofertorio']),
+('Matheus Cardoso', ARRAY['Cerifario']),
+('Isaac Ferreira', ARRAY['Cerifario', 'Ofertorio']),
+('Lucca Ribeiro', ARRAY['Altar', 'Ofertorio']),
+('Davi Lucca', ARRAY['Cerifario', 'Turiferario']),
+('Pedro Henrique', ARRAY['Cerifario']),
+('Thiago Moreira', ARRAY['Ofertorio', 'Intencoes']),
+('Antonio Castro', ARRAY['Cerifario', 'Altar']),
+('Leonardo Moura', ARRAY['Cerifario']),
+('Eduardo Braga', ARRAY['Ofertorio', 'Cerifario']),
+('Caio Cesar', ARRAY['Altar', 'Ofertorio']),
+('Vinicius Santana', ARRAY['Cerifario', 'Cruciferario']);
