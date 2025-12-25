@@ -1,62 +1,77 @@
 const express = require('express');
 const cors = require('cors');
-const db = require('./db'); // Seu arquivo de conexão com o banco
+const db = require('./db'); // Sua conexão PostgreSQL (db.js)
 
 const app = express();
 
 app.use(express.json());
 app.use(cors());
+app.use(express.static('public')); // Serve o site da pasta public
 
-// --- MUDANÇA 1: Servir os arquivos da pasta 'public' ---
-app.use(express.static('public')); 
-// Isso faz o http://localhost:3001 abrir seu site automaticamente!
-
-// --- ROTAS DO BANCO DE DADOS ---
-
-// Rota para buscar todos os servos (Você provavelmente já tinha essa)
+// --- ROTA 1: BUSCAR TUDO (GET) ---
 app.get('/servos', (req, res) => {
-    const sql = "SELECT * FROM servos";
+    // Ordena pelo ID para a lista não ficar pulando
+    const sql = "SELECT * FROM servos ORDER BY id ASC";
+    
     db.query(sql, (err, result) => {
-        if (err) return res.status(500).send(err);
-        res.send(result);
+        if (err) {
+            console.error("Erro no banco:", err);
+            return res.status(500).send({ error: "Erro ao buscar dados" });
+        }
+        // CORREÇÃO POSTGRES: Os dados vêm dentro de .rows
+        res.send(result.rows); 
     });
 });
 
-// --- NOVAS ROTAS (ADICIONE ISSO PARA O GERENCIADOR FUNCIONAR) ---
-
-// 1. Adicionar Servo
+// --- ROTA 2: ADICIONAR (POST) ---
 app.post('/servos', (req, res) => {
     const { nome } = req.body;
-    const sql = "INSERT INTO servos (nome, funcoes) VALUES (?, '[]')";
+    
+    // CORREÇÃO POSTGRES: 
+    // 1. Usa $1 em vez de ?
+    // 2. Usa 'RETURNING id' porque o Postgres não devolve o ID automaticamente
+    const sql = "INSERT INTO servos (nome, funcoes) VALUES ($1, '[]') RETURNING id";
+    
     db.query(sql, [nome], (err, result) => {
-        if (err) return res.status(500).send(err);
-        res.send({ id: result.insertId, nome, funcoes: [] });
+        if (err) {
+            console.error("Erro ao inserir:", err);
+            return res.status(500).send(err);
+        }
+        // Pega o ID que foi retornado
+        const novoId = result.rows[0].id;
+        res.send({ id: novoId, nome, funcoes: [] });
     });
 });
 
-// 2. Deletar Servo
+// --- ROTA 3: DELETAR (DELETE) ---
 app.delete('/servos/:id', (req, res) => {
     const { id } = req.params;
-    const sql = "DELETE FROM servos WHERE id = ?";
+    // CORREÇÃO POSTGRES: Usa $1
+    const sql = "DELETE FROM servos WHERE id = $1";
+    
     db.query(sql, [id], (err, result) => {
         if (err) return res.status(500).send(err);
         res.send({ message: "Deletado com sucesso" });
     });
 });
 
-// 3. Atualizar Funções
+// --- ROTA 4: ATUALIZAR (PUT) ---
 app.put('/servos/:id', (req, res) => {
     const { id } = req.params;
     const { funcoes } = req.body; 
-    const funcoesString = JSON.stringify(funcoes); // Converte array para texto
-    const sql = "UPDATE servos SET funcoes = ? WHERE id = ?";
+    const funcoesString = JSON.stringify(funcoes);
+    
+    // CORREÇÃO POSTGRES: Usa $1 e $2
+    const sql = "UPDATE servos SET funcoes = $1 WHERE id = $2";
+    
     db.query(sql, [funcoesString, id], (err, result) => {
         if (err) return res.status(500).send(err);
         res.send({ message: "Atualizado" });
     });
 });
 
-// Iniciar servidor
-app.listen(3001, () => {
-    console.log("Servidor rodando em http://localhost:3001");
+// Inicia servidor
+const PORT = process.env.PORT || 3001;
+app.listen(PORT, () => {
+    console.log(`Servidor rodando na porta ${PORT}`);
 });
