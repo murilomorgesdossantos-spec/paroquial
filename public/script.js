@@ -1,5 +1,3 @@
-// src/script.js
-
 // --- CONFIGURAÇÃO PADRÃO ---
 const REGRAS_PADRAO = {
     'Cerimonial': 2,
@@ -14,74 +12,67 @@ const REGRAS_PADRAO = {
     'Cerifario': 6
 };
 
-// BANCO DE PESSOAS (50 Pessoas)
-const BANCO_PESSOAS = [
-    // LIDERANÇA / CERIMONIÁRIOS
-    { id: 1, name: "Murilo Morges", roles: ['Cerimonial', 'Turiferario', 'Altar'] },
-    { id: 2, name: "Ana Costa", roles: ['Cerimonial', 'Microfone'] },
-    { id: 3, name: "Diego Martins", roles: ['Cerimonial', 'Turiferario'] },
-    { id: 4, name: "Julia Lima", roles: ['Cerimonial', 'Librifero'] },
-    { id: 5, name: "Roberto Alves", roles: ['Cerimonial', 'Naveteiro'] },
-    { id: 6, name: "Fernanda Rocha", roles: ['Cerimonial', 'Intencoes'] },
-    
-    // EQUIPE LITÚRGICA
-    { id: 7, name: "Felipe Melo", roles: ['Turiferario', 'Naveteiro'] },
-    { id: 8, name: "Pedro Santos", roles: ['Naveteiro', 'Cruciferario'] },
-    { id: 9, name: "Otavio Pinto", roles: ['Turiferario', 'Cerifario'] },
-    { id: 10, name: "Paulo Mendes", roles: ['Cruciferario', 'Cerifario'] },
-    { id: 11, name: "Lucas Pereira", roles: ['Naveteiro', 'Altar'] },
-    { id: 12, name: "Marcos Rocha", roles: ['Cruciferario', 'Cerifario'] },
-    { id: 13, name: "Gabriel Souza", roles: ['Turiferario', 'Ofertorio'] },
-    { id: 14, name: "Ricardo Lima", roles: ['Naveteiro', 'Librifero'] },
-
-    // LEITURA / MICROFONE / INTENÇÕES
-    { id: 15, name: "Maria Oliveira", roles: ['Librifero', 'Intencoes', 'Microfone'] },
-    { id: 16, name: "Sara Campos", roles: ['Microfone', 'Intencoes'] },
-    { id: 17, name: "Larissa Reis", roles: ['Intencoes', 'Microfone'] },
-    { id: 18, name: "Carla Dias", roles: ['Intencoes', 'Altar'] },
-    { id: 19, name: "Beatriz Silva", roles: ['Librifero', 'Microfone'] },
-    { id: 20, name: "Sofia Gomes", roles: ['Librifero', 'Ofertorio'] },
-    { id: 21, name: "Helena Martins", roles: ['Microfone', 'Cerifario'] },
-    { id: 22, name: "Laura Azevedo", roles: ['Intencoes', 'Ofertorio'] },
-    
-    // GERAL
-    { id: 23, name: "João Silva", roles: ['Cerifario', 'Ofertorio'] },
-    { id: 24, name: "Tiago Souza", roles: ['Cerifario', 'Ofertorio'] },
-    { id: 25, name: "Bruno Alves", roles: ['Cerifario', 'Ofertorio'] },
-    { id: 26, name: "Rafael Cruz", roles: ['Cerifario', 'Altar'] },
-    { id: 27, name: "Gabriela Nunes", roles: ['Ofertorio', 'Librifero'] },
-    { id: 28, name: "Renata Farias", roles: ['Ofertorio', 'Altar'] },
-    { id: 29, name: "Vitor Hugo", roles: ['Cerifario'] },
-    { id: 30, name: "Amanda Luz", roles: ['Ofertorio'] },
-    { id: 31, name: "Gustavo Henrique", roles: ['Cerifario', 'Altar'] },
-    { id: 32, name: "Enzo Gabriel", roles: ['Cerifario', 'Cruciferario'] },
-    { id: 33, name: "Arthur Miguel", roles: ['Cerifario', 'Ofertorio'] },
-    { id: 34, name: "Theo Nogueira", roles: ['Altar', 'Ofertorio'] },
-    { id: 35, name: "Heitor Vieira", roles: ['Cerifario', 'Naveteiro'] },
-    { id: 36, name: "Nicolas Ramos", roles: ['Cerifario'] },
-    { id: 37, name: "Lorenzo Pires", roles: ['Ofertorio', 'Cerifario'] },
-    { id: 38, name: "Samuel Lopes", roles: ['Altar', 'Cerifario'] },
-    { id: 39, name: "Benjamin Duarte", roles: ['Cerifario', 'Ofertorio'] },
-    { id: 40, name: "Matheus Cardoso", roles: ['Cerifario'] },
-    { id: 41, name: "Isaac Ferreira", roles: ['Cerifario', 'Ofertorio'] },
-    { id: 42, name: "Lucca Ribeiro", roles: ['Altar', 'Ofertorio'] },
-    { id: 43, name: "Davi Lucca", roles: ['Cerifario', 'Turiferario'] },
-    { id: 44, name: "Pedro Henrique", roles: ['Cerifario'] },
-    { id: 45, name: "Thiago Moreira", roles: ['Ofertorio', 'Intencoes'] },
-    { id: 46, name: "Antonio Castro", roles: ['Cerifario', 'Altar'] },
-    { id: 47, name: "Leonardo Moura", roles: ['Cerifario'] },
-    { id: 48, name: "Eduardo Braga", roles: ['Ofertorio', 'Cerifario'] },
-    { id: 49, name: "Caio Cesar", roles: ['Altar', 'Ofertorio'] },
-    { id: 50, name: "Vinicius Santana", roles: ['Cerifario', 'Cruciferario'] }
-];
-
+let BANCO_PESSOAS = []; 
 let escalaAtualParaSalvar = [];
 
-window.onload = function() {
-    renderizarInputsRegras();
+window.onload = async function() {
+    renderizarInputsRegras(); // Renderiza inputs iniciais
+    await carregarPessoasDoBanco();
     atualizarTotalVagas();
 };
 
+// --- API E RENDERIZAÇÃO LATERAL ---
+async function carregarPessoasDoBanco() {
+    try {
+        const response = await fetch('/api/pessoas');
+        if (!response.ok) throw new Error('Falha');
+        
+        BANCO_PESSOAS = await response.json();
+        
+        // Atualiza contador na sidebar
+        document.getElementById('totalServos').innerText = `${BANCO_PESSOAS.length} servos cadastrados`;
+        
+        // Renderiza a lista lateral
+        atualizarSidebar(BANCO_PESSOAS);
+
+    } catch (error) {
+        console.error(error);
+        document.getElementById('totalServos').innerText = "Erro ao carregar";
+    }
+}
+
+function atualizarSidebar(lista) {
+    const container = document.getElementById('lista-servos-container');
+    container.innerHTML = ''; // Limpa loading
+
+    lista.forEach(pessoa => {
+        const divItem = document.createElement('div');
+        divItem.className = 'servo-item';
+
+        const spanNome = document.createElement('span');
+        spanNome.className = 'servo-name';
+        spanNome.innerText = pessoa.name;
+
+        const divTags = document.createElement('div');
+        divTags.className = 'roles-tags';
+
+        // Cria uma etiqueta para cada função
+        if (pessoa.roles && Array.isArray(pessoa.roles)) {
+            pessoa.roles.forEach(role => {
+                const tag = document.createElement('span');
+                tag.className = 'role-tag';
+                tag.innerText = role;
+                divTags.appendChild(tag);
+            });
+        }
+
+        divItem.appendChild(spanNome);
+        divItem.appendChild(divTags);
+        container.appendChild(divItem);
+    });
+}
+
+// --- LÓGICA DE INTERFACE ---
 function mudarTipoMissa() {
     renderizarInputsRegras();
     atualizarTotalVagas();
@@ -94,11 +85,8 @@ function renderizarInputsRegras() {
     const tipoMissa = document.getElementById('tipoMissa').value;
 
     for (const [funcao, qtdPadrao] of Object.entries(REGRAS_PADRAO)) {
-        
-        if (tipoMissa === 'comum') {
-            if (funcao === 'Turiferario' || funcao === 'Naveteiro') {
-                continue;
-            }
+        if (tipoMissa === 'comum' && (funcao === 'Turiferario' || funcao === 'Naveteiro')) {
+            continue;
         }
 
         const div = document.createElement('div');
@@ -123,9 +111,7 @@ function renderizarInputsRegras() {
 function atualizarTotalVagas() {
     let total = 0;
     const inputs = document.querySelectorAll('.config-item input');
-    inputs.forEach(input => {
-        total += parseInt(input.value) || 0;
-    });
+    inputs.forEach(input => total += parseInt(input.value) || 0);
     document.getElementById('requiredSlots').innerText = total;
 }
 
@@ -133,17 +119,14 @@ function lerRegrasDaTela() {
     const regrasAtuais = {};
     for (const funcao of Object.keys(REGRAS_PADRAO)) {
         const input = document.getElementById(`rule-${funcao}`);
-        if (input) {
-            const valor = parseInt(input.value);
-            if (valor > 0) {
-                regrasAtuais[funcao] = valor;
-            }
+        if (input && parseInt(input.value) > 0) {
+            regrasAtuais[funcao] = parseInt(input.value);
         }
     }
     return regrasAtuais;
 }
 
-// --- FUNÇÕES DE HISTÓRICO ---
+// --- HISTÓRICO ---
 function getHistorico() {
     const salvo = localStorage.getItem('historico_missa');
     return salvo ? JSON.parse(salvo) : {};
@@ -152,9 +135,7 @@ function getHistorico() {
 function salvarHistorico(escala) {
     const historico = {};
     escala.forEach(item => {
-        if (item.pessoa) {
-            historico[item.pessoa.id] = item.cargo;
-        }
+        if (item.pessoa) historico[item.pessoa.id] = item.cargo;
     });
     localStorage.setItem('historico_missa', JSON.stringify(historico));
     
@@ -164,10 +145,7 @@ function salvarHistorico(escala) {
 }
 
 function confirmarEscala() {
-    if (escalaAtualParaSalvar.length === 0) {
-        alert("Gere uma escala primeiro!");
-        return;
-    }
+    if (escalaAtualParaSalvar.length === 0) return alert("Gere uma escala primeiro!");
     salvarHistorico(escalaAtualParaSalvar);
 }
 
@@ -176,10 +154,11 @@ function gerarEscala() {
     const tbody = document.getElementById('tableBody');
     tbody.innerHTML = ''; 
 
+    if (BANCO_PESSOAS.length === 0) return alert("Aguardando dados do banco...");
+
     const regrasAtuais = lerRegrasDaTela();
     const historicoPassado = getHistorico();
 
-    // ALTERAÇÃO AQUI: Não há mais limite, usamos o banco completo embaralhado
     let poolDisponivel = [...BANCO_PESSOAS];
     poolDisponivel.sort(() => Math.random() - 0.5); 
 
@@ -197,22 +176,17 @@ function gerarEscala() {
 
             if (candidatoIndex === -1) {
                 candidatoIndex = poolDisponivel.findIndex(p => 
-                    p.roles.includes(funcao) && 
-                    !idsUsados.has(p.id)
+                    p.roles.includes(funcao) && !idsUsados.has(p.id)
                 );
             }
 
             let pessoaEscolhida = null;
-
             if (candidatoIndex !== -1) {
                 pessoaEscolhida = poolDisponivel[candidatoIndex];
                 idsUsados.add(pessoaEscolhida.id);
             }
 
-            resultadoFinal.push({
-                cargo: funcao,
-                pessoa: pessoaEscolhida
-            });
+            resultadoFinal.push({ cargo: funcao, pessoa: pessoaEscolhida });
         }
     }
 
@@ -231,34 +205,22 @@ function gerarEscala() {
         
         const tdNome = document.createElement('td');
         if (item.pessoa) {
-            tdNome.className = 'text-purple';
+            tdNome.className = 'text-name';
             tdNome.innerText = item.pessoa.name;
-            
             if (historicoPassado[item.pessoa.id] === item.cargo) {
-                const alerta = document.createElement('span');
-                alerta.innerText = " (Repetindo)";
-                alerta.style.fontSize = "0.7em";
-                alerta.style.color = "orange";
-                tdNome.appendChild(alerta);
+                tdNome.innerHTML += ' <span style="font-size:0.7em; color:orange;">(Repetindo)</span>';
             }
-
         } else {
-            tdNome.className = 'text-red';
+            tdNome.style.color = '#991b1b';
             tdNome.innerText = '-- VAGO --';
         }
 
         const tdStatus = document.createElement('td');
         const span = document.createElement('span');
-        span.className = 'badge';
-        if (item.pessoa) {
-            span.classList.add('badge-success');
-            span.innerText = 'Confirmado';
-        } else {
-            span.classList.add('badge-error');
-            span.innerText = 'Falta Pessoal';
-        }
+        span.className = item.pessoa ? 'badge badge-ok' : 'badge badge-fail';
+        span.innerText = item.pessoa ? 'Confirmado' : 'Falta Pessoal';
+        
         tdStatus.appendChild(span);
-
         tr.appendChild(tdFuncao);
         tr.appendChild(tdNome);
         tr.appendChild(tdStatus);
