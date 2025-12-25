@@ -22,12 +22,37 @@ window.onload = async function() {
 };
 
 // --- API E RENDERIZAÇÃO LATERAL ---
+// --- API E RENDERIZAÇÃO LATERAL ---
+
 async function carregarPessoasDoBanco() {
     try {
-        const response = await fetch('/api/pessoas');
-        if (!response.ok) throw new Error('Falha');
+        // CORREÇÃO 1: Usar a rota certa (/servos) em vez de /api/pessoas
+        const response = await fetch('/servos');
         
-        BANCO_PESSOAS = await response.json();
+        if (!response.ok) throw new Error('Falha ao conectar com o servidor');
+        
+        const dadosBrutos = await response.json();
+        
+        // CORREÇÃO 2: "Tradutor" de Banco de Dados para o Script
+        // O banco manda: { nome: "João", funcoes: '["Altar"]' }
+        // O script quer: { name: "João", roles: ["Altar"] }
+        BANCO_PESSOAS = dadosBrutos.map(servo => {
+            let funcoesReais = [];
+            try {
+                // Tenta transformar o texto do banco em uma lista real
+                funcoesReais = typeof servo.funcoes === 'string' 
+                    ? JSON.parse(servo.funcoes) 
+                    : servo.funcoes;
+            } catch (e) {
+                funcoesReais = [];
+            }
+
+            return {
+                id: servo.id,
+                name: servo.nome,  // Traduz 'nome' para 'name'
+                roles: Array.isArray(funcoesReais) ? funcoesReais : [] // Garante que é lista
+            };
+        });
         
         // Atualiza contador na sidebar
         document.getElementById('totalServos').innerText = `${BANCO_PESSOAS.length} servos cadastrados`;
@@ -36,7 +61,7 @@ async function carregarPessoasDoBanco() {
         atualizarSidebar(BANCO_PESSOAS);
 
     } catch (error) {
-        console.error(error);
+        console.error("Erro detalhado:", error);
         document.getElementById('totalServos').innerText = "Erro ao carregar";
     }
 }
