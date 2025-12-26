@@ -35,18 +35,16 @@ const EscalaLiturgica = () => {
   };
 
   /**
-   * FUNÇÃO DE NORMALIZAÇÃO:
-   * 1. Remove acentos (normalize + regex).
-   * 2. Remove números no final do texto (ex: "Ofertório 1" -> "ofertorio").
-   * 3. Deixa em minúsculo e remove espaços extras.
+   * FUNÇÃO DE NORMALIZAÇÃO MELHORADA:
+   * Resolve o erro de não encontrar servos devido a acentos ou números.
    */
   const simplificarParaSorteio = (texto) => {
     if (!texto) return "";
     return texto
       .toString()
       .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "") // Remove acentos
-      .replace(/\s\d+$/, "")          // Remove números no final
+      .replace(/[\u0300-\u036f]/g, "") // Remove acentos (Ex: Ofertório -> Ofertorio)
+      .replace(/\s\d+$/, "")          // Remove números finais (Ex: Altar 1 -> Altar)
       .toLowerCase()
       .trim();
   };
@@ -54,30 +52,31 @@ const EscalaLiturgica = () => {
   const gerarEscalaSemanal = () => {
     if (!dataMissa) { alert("Selecione a data da missa."); return; }
     
-    // Filtra disponíveis e mantém a ordem da fila (rodízio por tempo)
+    // Filtra disponíveis mantendo a ordem de rodízio do banco
     let disponiveis = [...servos].filter(s => !ausentes.includes(s.id));
     const novaEscala = [];
 
     funcoesBase.forEach(funcaoNome => {
-      // Regra para Missa Comum: Turiferário e Naveteiro são ignorados
-      if (!isSolene && (simplificarParaSorteio(funcaoNome) === "turiferario" || simplificarParaSorteio(funcaoNome) === "naveteiro")) {
+      // Regra Solene: Turiferário e Naveteiro só em missas solenes
+      const simplificada = simplificarParaSorteio(funcaoNome);
+      if (!isSolene && (simplificada === "turiferario" || simplificada === "naveteiro")) {
         novaEscala.push({ funcao: funcaoNome, servo_nome: "-/-", servo_id: null });
         return;
       }
 
-      const categoriaRequisitada = simplificarParaSorteio(funcaoNome);
+      const categoriaRequisitada = simplificada;
 
-      // Busca o primeiro servo na fila que tenha o cargo equivalente
+      // Busca o próximo servo da fila que possua o cargo (role) compatível
       const idx = disponiveis.findIndex(s => {
         const cargosNormalizados = (s.roles || []).map(r => simplificarParaSorteio(r));
         return cargosNormalizados.includes(categoriaRequisitada);
       });
 
       if (idx !== -1) {
-        // Remove da lista do dia para não repetir na mesma missa
         const sorteado = disponiveis.splice(idx, 1)[0];
         novaEscala.push({ funcao: funcaoNome, servo_nome: sorteado.name, servo_id: sorteado.id });
       } else {
+        // Caso não encontre ninguém com o cargo específico, exibe vazio
         novaEscala.push({ funcao: funcaoNome, servo_nome: "-/-", servo_id: null });
       }
     });
@@ -125,7 +124,7 @@ const EscalaLiturgica = () => {
     const element = document.getElementById('tabela-impressao');
     const opt = {
       margin: 10,
-      filename: `Escala_Pastoral_${dataMissa}.pdf`,
+      filename: `Escala_Coroinhas_${dataMissa}.pdf`,
       image: { type: 'jpeg', quality: 1 },
       html2canvas: { scale: 3, useCORS: true },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
@@ -137,7 +136,7 @@ const EscalaLiturgica = () => {
     <div className="p-8 max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8 font-sans">
       <div className="space-y-6">
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-          <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2 underline decoration-purple-500 decoration-2">Configurar Missa</h3>
+          <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">Configurar Missa</h3>
           <div className="space-y-4 text-left">
             <div>
               <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Data da Missa</label>
@@ -152,7 +151,7 @@ const EscalaLiturgica = () => {
 
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col max-h-[400px]">
           <h3 className="font-bold text-red-600 mb-3 flex items-center gap-2 text-left">Lista de Ausentes</h3>
-          <div className="overflow-y-auto pr-2 space-y-1 custom-scrollbar">
+          <div className="overflow-y-auto pr-2 space-y-1 custom-scrollbar text-left">
             {servos.map(s => (
               <button key={s.id} onClick={() => toggleAusente(s.id)} className={`w-full text-left p-2.5 rounded-lg text-sm transition-all ${ausentes.includes(s.id) ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-slate-50 text-slate-600 hover:bg-slate-200'}`}>
                 {s.name}
@@ -176,30 +175,30 @@ const EscalaLiturgica = () => {
               </button>
             </div>
 
-            <div id="tabela-impressao" className="bg-white p-12 text-black border rounded-xl shadow-sm" style={{ fontFamily: 'Arial, sans-serif' }}>
+            <div id="tabela-impressao" className="bg-white p-12 text-black border rounded-xl shadow-sm">
               <div className="flex flex-col items-center mb-8">
-                <img src={logoImg} alt="Logo" className="h-20 mb-4" />
+                <img src={logoImg} alt="Logo" className="h-24 mb-4" />
                 <h1 className="text-3xl font-black text-orange-600 uppercase">Pastoral Coroinhas</h1>
-                <p className="text-lg font-bold text-slate-700">Paróquia São Pedro e São Paulo</p>
+                <p className="text-lg font-bold text-slate-700 text-center">Paróquia São Pedro e São Paulo</p>
                 <div className="w-full h-1 bg-orange-500 mt-2"></div>
               </div>
 
               <div className="text-center mb-6 py-2 bg-slate-100 border-y border-slate-300">
-                <span className="text-xl font-black uppercase">Escala Litúrgica - {formatarDataBR(dataMissa)}</span>
+                <span className="text-xl font-black uppercase tracking-widest">Escala Litúrgica - {formatarDataBR(dataMissa)}</span>
               </div>
 
-              <table className="w-full border-collapse border-2 border-black text-center">
+              <table className="w-full border-collapse border-2 border-black">
                 <thead>
                   <tr className="bg-orange-500 text-white">
-                    <th className="border-2 border-black p-3 text-left uppercase text-sm font-black">Função</th>
-                    <th className="border-2 border-black p-3 uppercase text-sm font-black">Servo Escalado</th>
+                    <th className="border-2 border-black p-3 text-left uppercase text-sm font-black w-1/2">Função</th>
+                    <th className="border-2 border-black p-3 text-center uppercase text-sm font-black w-1/2">Servo Escalado</th>
                   </tr>
                 </thead>
                 <tbody>
                   {escalaGerada.map((item, idx) => (
                     <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-orange-50'}>
-                      <td className="border border-slate-400 p-2 font-bold text-xs uppercase text-left">{item.funcao}</td>
-                      <td className={`border border-slate-400 p-2 text-sm font-black ${item.servo_id ? 'text-black' : 'text-slate-300'}`}>
+                      <td className="border border-slate-400 p-2 font-bold text-[11px] uppercase text-left">{item.funcao}</td>
+                      <td className={`border border-slate-400 p-2 text-center text-[12px] font-black ${item.servo_id ? 'text-black' : 'text-slate-300'}`}>
                         {item.servo_nome}
                       </td>
                     </tr>
