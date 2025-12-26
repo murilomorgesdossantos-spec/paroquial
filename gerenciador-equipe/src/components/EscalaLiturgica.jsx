@@ -35,18 +35,18 @@ const EscalaLiturgica = () => {
   };
 
   /**
-   * FUNÇÃO DE NORMALIZAÇÃO REFORÇADA:
-   * 1. Remove acentos de forma profunda.
-   * 2. Remove números e qualquer espaço antes deles (Ex: "Ceriferário 1" -> "ceriferario").
-   * 3. Converte para minúsculas para evitar erro de caixa (A vs a).
+   * FUNÇÃO DE NORMALIZAÇÃO TOTAL:
+   * 1. Remove acentos (Ex: Ofertório -> Ofertorio)
+   * 2. Remove números e espaços (Ex: Altar 1 -> Altar)
+   * 3. Deixa em minúsculo
    */
   const simplificarParaSorteio = (texto) => {
     if (!texto) return "";
     return texto
       .toString()
       .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "") // Remove acentos (Ex: í vira i)
-      .replace(/\s+\d+.*$/, "")        // Remove espaço seguido de número e tudo que vem depois
+      .replace(/[\u0300-\u036f]/g, "") // Limpa acentos
+      .replace(/\s+\d+.*$/, "")        // Limpa números e sufixos
       .toLowerCase()
       .trim();
   };
@@ -54,22 +54,23 @@ const EscalaLiturgica = () => {
   const gerarEscalaSemanal = () => {
     if (!dataMissa) { alert("Selecione a data da missa."); return; }
     
+    // Lista de disponíveis seguindo a ordem de rodízio
     let disponiveis = [...servos].filter(s => !ausentes.includes(s.id));
     const novaEscala = [];
 
     funcoesBase.forEach(funcaoNome => {
       const categoriaRequisitada = simplificarParaSorteio(funcaoNome);
 
-      // Regra Solene: Turiferário e Naveteiro só em missas solenes
+      // Regra Solene: Turiferário e Naveteiro
       if (!isSolene && (categoriaRequisitada === "turiferario" || categoriaRequisitada === "naveteiro")) {
         novaEscala.push({ funcao: funcaoNome, servo_nome: "-/-", servo_id: null });
         return;
       }
 
-      // Busca o próximo servo da fila que possua o cargo compatível (usando a normalização nos dois lados)
+      // Busca o primeiro servo que tenha o cargo (role) compatível ignorando acentos
       const idx = disponiveis.findIndex(s => {
-        const cargosNormalizados = (s.roles || []).map(r => simplificarParaSorteio(r));
-        return cargosNormalizados.includes(categoriaRequisitada);
+        const cargosServo = Array.isArray(s.roles) ? s.roles : [];
+        return cargosServo.some(cargo => simplificarParaSorteio(cargo) === categoriaRequisitada);
       });
 
       if (idx !== -1) {
@@ -123,7 +124,7 @@ const EscalaLiturgica = () => {
     const element = document.getElementById('tabela-impressao');
     const opt = {
       margin: 10,
-      filename: `Escala_Pastoral_${dataMissa}.pdf`,
+      filename: `Escala_Coroinhas_${dataMissa}.pdf`,
       image: { type: 'jpeg', quality: 1 },
       html2canvas: { scale: 3, useCORS: true },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
