@@ -8,10 +8,20 @@ const EscalaLiturgica = () => {
   const [tipoMissa, setTipoMissa] = useState('comum'); // 'comum' ou 'solene'
   const [isLoading, setIsLoading] = useState(false);
 
-  // Definição das funções por tipo de missa
+  // 1. REGRAS DE QUANTIDADE CONFORME SOLICITADO
   const funcoesMissa = {
-    comum: ["Cerimonial", "Turiferario", "Naveteiro", "Cruciferario", "Librifero", "Microfone", "Altar"],
-    solene: ["Cerimonial 1", "Cerimonial 2", "Turiferario", "Naveteiro", "Cruciferario", "Librifero", "Microfone", "Altar", "Intencoes", "Ofertorio"]
+    solene: [
+      "Cerimonial 1", "Cerimonial 2", "Turiferário", "Naveteiro", "Cruciferário", 
+      "Librífero", "Microfone", "Altar 1", "Altar 2", "Intenções 1", "Intenções 2", 
+      "Ofertório 1", "Ofertório 2", "Ofertório 3", "Ofertório 4",
+      "Ceriferário 1", "Ceriferário 2", "Ceriferário 3", "Ceriferário 4", "Ceriferário 5", "Ceriferário 6"
+    ],
+    comum: [
+      "Cerimonial 1", "Cerimonial 2", "Cruciferário", "Librífero", "Microfone", 
+      "Altar 1", "Altar 2", "Intenções 1", "Intenções 2", 
+      "Ofertório 1", "Ofertório 2", "Ofertório 3", "Ofertório 4",
+      "Ceriferário 1", "Ceriferário 2", "Ceriferário 3", "Ceriferário 4", "Ceriferário 5", "Ceriferário 6"
+    ]
   };
 
   useEffect(() => {
@@ -34,19 +44,16 @@ const EscalaLiturgica = () => {
     );
   };
 
+  // 2. LÓGICA DE GERAÇÃO QUE ENCAIXA OS SERVOS DISPONÍVEIS
   const gerarEscalaAuto = () => {
     const funcoesNecessarias = funcoesMissa[tipoMissa];
-    
-    // Filtra quem não está marcado como ausente
     const disponiveis = servos.filter(s => !ausentes.includes(s.id));
 
     if (disponiveis.length < funcoesNecessarias.length) {
-      alert(`Servos disponíveis insuficientes! Precisa de ${funcoesNecessarias.length} e tem apenas ${disponiveis.length}.`);
+      alert(`Quantidade insuficiente! A missa ${tipoMissa} precisa de ${funcoesNecessarias.length} servos, mas apenas ${disponiveis.length} estão disponíveis.`);
       return;
     }
 
-    // Como os servos já vêm ordenados por "quem serviu há mais tempo" do banco,
-    // pegamos os primeiros da lista que não estão ausentes.
     const novaEscala = funcoesNecessarias.map((funcao, index) => ({
       funcao,
       servo_id: disponiveis[index].id,
@@ -57,7 +64,7 @@ const EscalaLiturgica = () => {
   };
 
   const confirmarESalvarNoBanco = async () => {
-    if (!confirm("Deseja oficializar esta escala no histórico? Isso jogará esses servos para o fim da fila.")) return;
+    if (!confirm("Deseja oficializar esta escala no histórico?")) return;
     
     setIsLoading(true);
     try {
@@ -70,9 +77,9 @@ const EscalaLiturgica = () => {
       });
 
       if (response.ok) {
-        alert("Escala salva com sucesso!");
+        alert("Escala salva e rodízio atualizado!");
         setEscalaGerada(null);
-        fetchServosParaFila(); // Atualiza a fila visual
+        fetchServosParaFila(); 
       }
     } catch (error) {
       alert("Erro ao salvar escala.");
@@ -83,29 +90,25 @@ const EscalaLiturgica = () => {
 
   return (
     <div className="p-8 max-w-6xl mx-auto flex flex-col gap-8">
-      
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-3xl font-bold text-slate-800">Gerador de Escala</h2>
-          <p className="text-gray-500">Configuração de rodízio automático via Banco de Dados.</p>
-        </div>
+      <div>
+        <h2 className="text-3xl font-bold text-slate-800">Gerador de Escala</h2>
+        <p className="text-gray-500">Rodízio automático respeitando as quantidades da missa {tipoMissa}.</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
-        {/* COLUNA 1: CONFIGURAÇÕES */}
         <div className="space-y-6">
+          {/* SELEÇÃO TIPO DE MISSA */}
           <div className="bg-white p-6 rounded-xl shadow-sm border">
             <h3 className="font-bold mb-4 flex items-center gap-2"><Calendar size={18}/> 1. Tipo de Missa</h3>
             <div className="flex gap-2">
               <button 
-                onClick={() => setTipoMissa('comum')}
+                onClick={() => { setTipoMissa('comum'); setEscalaGerada(null); }}
                 className={`flex-1 py-2 rounded-lg font-medium border ${tipoMissa === 'comum' ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-gray-600'}`}
               >
                 Comum
               </button>
               <button 
-                onClick={() => setTipoMissa('solene')}
+                onClick={() => { setTipoMissa('solene'); setEscalaGerada(null); }}
                 className={`flex-1 py-2 rounded-lg font-medium border ${tipoMissa === 'solene' ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-gray-600'}`}
               >
                 Solene
@@ -113,9 +116,9 @@ const EscalaLiturgica = () => {
             </div>
           </div>
 
+          {/* LISTA DE AUSENTES */}
           <div className="bg-white p-6 rounded-xl shadow-sm border max-h-[400px] flex flex-col">
             <h3 className="font-bold mb-2 flex items-center gap-2"><UserMinus size={18}/> 2. Quem NÃO participa?</h3>
-            <p className="text-xs text-gray-400 mb-4">Marque os servos que avisaram que não podem ir.</p>
             <div className="overflow-y-auto space-y-2 pr-2">
               {servos.map(s => (
                 <button 
@@ -124,7 +127,7 @@ const EscalaLiturgica = () => {
                   className={`w-full flex justify-between items-center p-2 rounded-md text-sm transition-colors ${ausentes.includes(s.id) ? 'bg-red-50 text-red-600 border border-red-200' : 'bg-gray-50 text-gray-700 border border-transparent hover:border-gray-300'}`}
                 >
                   {s.name}
-                  {ausentes.includes(s.id) && <span className="text-[10px] font-bold uppercase">Ausente</span>}
+                  {ausentes.includes(s.id) && <span className="text-[10px] font-bold uppercase">Falta</span>}
                 </button>
               ))}
             </div>
@@ -138,34 +141,27 @@ const EscalaLiturgica = () => {
           </button>
         </div>
 
-        {/* COLUNA 2 e 3: RESULTADO */}
+        {/* TABELA DE RESULTADOS */}
         <div className="lg:col-span-2">
-          <div className="bg-white rounded-xl shadow-sm border min-h-[500px] flex flex-col">
+          <div className="bg-white rounded-xl shadow-sm border min-h-[500px] flex flex-col p-8">
             {escalaGerada ? (
-              <div className="p-8">
+              <>
                 <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-xl font-bold text-slate-800 underline decoration-purple-500">Escala Proposta</h3>
-                  <div className="flex gap-2">
-                    <button onClick={() => window.print()} className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg"><Download size={20}/></button>
-                  </div>
+                  <h3 className="text-xl font-bold text-slate-800">Escala Proposta ({escalaGerada.length} pessoas)</h3>
                 </div>
 
                 <table className="w-full text-left">
                   <thead>
-                    <tr className="text-gray-400 text-sm uppercase tracking-wider">
-                      <th className="pb-4 font-medium">Função</th>
-                      <th className="pb-4 font-medium">Servo</th>
+                    <tr className="text-gray-400 text-xs uppercase tracking-wider border-b">
+                      <th className="pb-3">Função</th>
+                      <th className="pb-3">Servo</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
                     {escalaGerada.map((item, idx) => (
-                      <tr key={idx} className="group">
-                        <td className="py-4 font-medium text-slate-600">{item.funcao}</td>
-                        <td className="py-4">
-                          <span className="bg-purple-50 text-purple-700 px-3 py-1 rounded-full font-bold text-sm">
-                            {item.servo_nome}
-                          </span>
-                        </td>
+                      <tr key={idx} className="hover:bg-slate-50">
+                        <td className="py-2 text-sm font-medium text-slate-600">{item.funcao}</td>
+                        <td className="py-2 text-sm font-bold text-purple-700">{item.servo_nome}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -177,28 +173,18 @@ const EscalaLiturgica = () => {
                     disabled={isLoading}
                     className="flex-1 bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-bold flex items-center justify-center gap-2"
                   >
-                    {isLoading ? "Salvando..." : <><CheckCircle2 size={20}/> Confirmar e Salvar no Banco</>}
-                  </button>
-                  <button 
-                    onClick={() => setEscalaGerada(null)}
-                    className="px-6 py-3 border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50"
-                  >
-                    Descartar
+                    {isLoading ? "Salvando..." : <><CheckCircle2 size={20}/> Confirmar e Salvar</>}
                   </button>
                 </div>
-              </div>
+              </>
             ) : (
-              <div className="flex-1 flex flex-col items-center justify-center text-gray-400 p-10 text-center">
-                <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mb-4">
-                  <Calendar size={40} className="opacity-20" />
-                </div>
-                <p className="text-lg font-medium">Nenhuma escala gerada</p>
-                <p className="text-sm max-w-[250px]">Selecione o tipo de missa e os ausentes, depois clique em Gerar.</p>
+              <div className="flex-1 flex flex-col items-center justify-center text-gray-400 text-center">
+                <Calendar size={48} className="opacity-10 mb-4" />
+                <p>Configure a missa e clique em Gerar.</p>
               </div>
             )}
           </div>
         </div>
-
       </div>
     </div>
   );
