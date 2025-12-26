@@ -70,7 +70,8 @@ app.put('/servos/:id', (req, res) => {
 // 3. Adição Crucial: Rota "Coringa" (Catch-all)
 // Qualquer rota que NÃO seja uma das APIs acima, vai devolver o site React (index.html)
 // Isso resolve a tela branca e problemas de atualização da página.
-app.get('*', (req, res) => {
+// Usamos /.*/ (sem aspas) que é uma Regex e funciona sempre
+app.get(/.*/, (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
