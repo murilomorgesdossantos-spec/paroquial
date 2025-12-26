@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { Trash2, Plus, Search, Save, X } from 'lucide-react';
 
-const GerenciarEquipe = () => {
+// Recebemos a função 'onClose' vinda do Dashboard para fechar o modal
+const GerenciarEquipe = ({ onClose }) => {
+  
   // 1. Lista de Funções Disponíveis
   const availableRoles = [
     "Cerimonial", "Turiferario", "Naveteiro", "Cruciferario", 
@@ -18,181 +20,154 @@ const GerenciarEquipe = () => {
     { id: 6, name: 'Fernanda Rocha', roles: ['Intencoes', 'Cerimonial'] }
   ]);
 
-  // Estados para os inputs
   const [newMemberName, setNewMemberName] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
 
-  // --- FUNÇÃO 1: CORREÇÃO DO CLIQUE (ALTERNAR FUNÇÃO) ---
+  // --- LÓGICA DE CLIQUE E EDIÇÃO ---
   const toggleRole = (memberId, role) => {
     setMembers(prevMembers => prevMembers.map(member => {
-      // Procura o membro clicado pelo ID
       if (member.id === memberId) {
         const hasRole = member.roles.includes(role);
-        
-        // Se já tem a função, remove. Se não tem, adiciona.
         const updatedRoles = hasRole
-          ? member.roles.filter(r => r !== role) // Remove
-          : [...member.roles, role];             // Adiciona
-          
-        // Retorna o membro atualizado
+          ? member.roles.filter(r => r !== role) 
+          : [...member.roles, role];
         return { ...member, roles: updatedRoles };
       }
-      return member; // Retorna os outros membros sem mexer
+      return member;
     }));
   };
 
-  // --- FUNÇÃO 2: CORREÇÃO DO ADICIONAR ---
   const handleAddMember = () => {
-    if (!newMemberName.trim()) return; // Não deixa adicionar vazio
-
+    if (!newMemberName.trim()) return;
     const newId = members.length > 0 ? Math.max(...members.map(m => m.id)) + 1 : 1;
-    
-    const newMember = {
-      id: newId,
-      name: newMemberName,
-      roles: ['Cerimonial'] // Adiciona já com uma função padrão
-    };
-
-    setMembers([newMember, ...members]); // Adiciona no topo da lista
-    setNewMemberName(''); // Limpa o input
+    setMembers([{ id: newId, name: newMemberName, roles: ['Cerimonial'] }, ...members]);
+    setNewMemberName('');
   };
 
-  // --- FUNÇÃO 3: REMOVER MEMBRO ---
   const handleDeleteMember = (id) => {
     if(confirm("Tem certeza que deseja remover este servo?")) {
       setMembers(members.filter(m => m.id !== id));
     }
   };
 
-  // --- FUNÇÃO 4: SALVAR TUDO ---
   const handleSave = () => {
     console.log("Enviando para o Banco de Dados:", members);
-    alert("Alterações salvas com sucesso! (Verifique o Console F12)");
+    alert("Alterações salvas com sucesso!");
+    if (onClose) onClose(); // Fecha o modal após salvar (opcional)
   };
 
-  // --- LÓGICA DA BUSCA (FILTRO) ---
-  // A tabela vai mostrar essa lista 'filteredMembers', não a 'members' direta
   const filteredMembers = members.filter(member => 
     member.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white w-full max-w-5xl rounded-lg shadow-xl overflow-hidden flex flex-col max-h-[90vh]">
-        
-        {/* CABEÇALHO DO MODAL */}
-        <div className="p-5 border-b flex justify-between items-center bg-white">
-          <h2 className="text-2xl font-bold text-gray-800">Gerenciar Equipe</h2>
-          <button className="text-gray-400 hover:text-gray-600">
-            <X size={24} />
-          </button>
-        </div>
+    // Removemos a div escura 'fixed inset-0 bg-black/50' daqui, pois o Dashboard já cuida disso.
+    // Deixamos apenas o conteúdo principal (o Cartão Branco).
+    <div className="bg-white w-full rounded-lg shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+      
+      {/* CABEÇALHO */}
+      <div className="p-5 border-b flex justify-between items-center bg-white">
+        <h2 className="text-2xl font-bold text-gray-800">Gerenciar Equipe</h2>
+        {/* Botão X chama a função onClose */}
+        <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100 transition-colors">
+          <X size={24} />
+        </button>
+      </div>
 
-        {/* ÁREA DE CONTROLES (ADICIONAR + BUSCAR) */}
-        <div className="p-5 bg-gray-50 border-b space-y-4">
-          
-          {/* Adicionar Novo */}
-          <div className="flex gap-2">
-            <input
-              type="text"
-              placeholder="Nome do novo servo..."
-              className="flex-1 p-3 border rounded-md border-gray-300 outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
-              value={newMemberName}
-              onChange={(e) => setNewMemberName(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleAddMember()}
-            />
-            <button 
-              onClick={handleAddMember}
-              className="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-md font-bold flex items-center gap-2 transition-colors"
-            >
-              <Plus size={20} /> Adicionar
-            </button>
-          </div>
-
-          {/* Barra de Pesquisa */}
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-              <Search size={20} className="text-gray-400" />
-            </div>
-            <input
-              type="text"
-              placeholder="Buscar membros existentes..."
-              className="w-full p-2 pl-10 border rounded-md border-gray-300 bg-white focus:ring-2 focus:ring-purple-500 outline-none"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-        </div>
-
-        {/* TABELA DE MEMBROS (COM SCROLL) */}
-        <div className="flex-1 overflow-y-auto p-5">
-          <div className="border rounded-lg overflow-hidden">
-            {/* Cabeçalho da Tabela */}
-            <div className="bg-gray-100 p-3 grid grid-cols-12 font-bold text-gray-600 text-sm border-b">
-              <div className="col-span-3 pl-2">NOME</div>
-              <div className="col-span-8 text-center">FUNÇÕES (CLIQUE PARA ALTERNAR)</div>
-              <div className="col-span-1 text-center">AÇÃO</div>
-            </div>
-
-            {/* Lista Filtrada */}
-            <div className="divide-y divide-gray-100">
-              {filteredMembers.length === 0 ? (
-                <div className="p-8 text-center text-gray-500">Nenhum servo encontrado com esse nome.</div>
-              ) : (
-                filteredMembers.map(member => (
-                  <div key={member.id} className="p-3 grid grid-cols-12 items-center hover:bg-purple-50/30 transition-colors">
-                    
-                    {/* Nome */}
-                    <div className="col-span-3 font-semibold text-gray-800 pl-2">
-                      {member.name}
-                    </div>
-                    
-                    {/* Botões de Função */}
-                    <div className="col-span-8 flex flex-wrap gap-1 justify-center">
-                      {availableRoles.map(role => {
-                        const isActive = member.roles.includes(role);
-                        return (
-                          <button
-                            key={role}
-                            onClick={() => toggleRole(member.id, role)}
-                            className={`text-xs px-2 py-1 rounded border transition-all duration-200 ${
-                              isActive 
-                                ? 'bg-purple-100 border-purple-500 text-purple-700 font-bold shadow-sm scale-105' 
-                                : 'bg-white border-gray-200 text-gray-400 hover:border-gray-400 hover:text-gray-600'
-                            }`}
-                          >
-                            {role}
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    {/* Botão Excluir */}
-                    <div className="col-span-1 flex justify-center">
-                      <button 
-                        onClick={() => handleDeleteMember(member.id)}
-                        className="text-red-300 hover:text-red-500 p-2 hover:bg-red-50 rounded-full transition-colors"
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* RODAPÉ COM BOTÃO SALVAR */}
-        <div className="p-4 border-t bg-gray-50 flex justify-end">
+      {/* CONTROLES */}
+      <div className="p-5 bg-gray-50 border-b space-y-4">
+        <div className="flex gap-2">
+          <input
+            type="text"
+            placeholder="Nome do novo servo..."
+            className="flex-1 p-3 border rounded-md border-gray-300 outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
+            value={newMemberName}
+            onChange={(e) => setNewMemberName(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleAddMember()}
+          />
           <button 
-            onClick={handleSave}
-            className="bg-purple-700 hover:bg-purple-800 text-white px-8 py-3 rounded shadow-md flex items-center gap-2 font-semibold transition-transform active:scale-95"
+            onClick={handleAddMember}
+            className="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-md font-bold flex items-center gap-2 transition-colors"
           >
-            <Save size={20} /> Salvar Alterações
+            <Plus size={20} /> Adicionar
           </button>
         </div>
 
+        <div className="relative">
+          <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+            <Search size={20} className="text-gray-400" />
+          </div>
+          <input
+            type="text"
+            placeholder="Buscar membros existentes..."
+            className="w-full p-2 pl-10 border rounded-md border-gray-300 bg-white focus:ring-2 focus:ring-purple-500 outline-none"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+      </div>
+
+      {/* LISTA DE MEMBROS */}
+      <div className="flex-1 overflow-y-auto p-5">
+        <div className="border rounded-lg overflow-hidden">
+          <div className="bg-gray-100 p-3 grid grid-cols-12 font-bold text-gray-600 text-sm border-b">
+            <div className="col-span-3 pl-2">NOME</div>
+            <div className="col-span-8 text-center">FUNÇÕES (CLIQUE PARA ALTERNAR)</div>
+            <div className="col-span-1 text-center">AÇÃO</div>
+          </div>
+
+          <div className="divide-y divide-gray-100">
+            {filteredMembers.length === 0 ? (
+              <div className="p-8 text-center text-gray-500">Nenhum servo encontrado.</div>
+            ) : (
+              filteredMembers.map(member => (
+                <div key={member.id} className="p-3 grid grid-cols-12 items-center hover:bg-purple-50/30 transition-colors">
+                  <div className="col-span-3 font-semibold text-gray-800 pl-2">
+                    {member.name}
+                  </div>
+                  
+                  <div className="col-span-8 flex flex-wrap gap-1 justify-center">
+                    {availableRoles.map(role => {
+                      const isActive = member.roles.includes(role);
+                      return (
+                        <button
+                          key={role}
+                          onClick={() => toggleRole(member.id, role)}
+                          className={`text-xs px-2 py-1 rounded border transition-all duration-200 ${
+                            isActive 
+                              ? 'bg-purple-100 border-purple-500 text-purple-700 font-bold shadow-sm scale-105' 
+                              : 'bg-white border-gray-200 text-gray-400 hover:border-gray-400 hover:text-gray-600'
+                          }`}
+                        >
+                          {role}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="col-span-1 flex justify-center">
+                    <button 
+                      onClick={() => handleDeleteMember(member.id)}
+                      className="text-red-300 hover:text-red-500 p-2 hover:bg-red-50 rounded-full transition-colors"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* RODAPÉ */}
+      <div className="p-4 border-t bg-gray-50 flex justify-end">
+        <button 
+          onClick={handleSave}
+          className="bg-purple-700 hover:bg-purple-800 text-white px-8 py-3 rounded shadow-md flex items-center gap-2 font-semibold transition-transform active:scale-95"
+        >
+          <Save size={20} /> Salvar Alterações
+        </button>
       </div>
     </div>
   );
