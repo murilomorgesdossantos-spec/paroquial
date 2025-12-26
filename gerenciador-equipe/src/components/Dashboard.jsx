@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Users, Calendar, Settings, Menu } from 'lucide-react';
 import GerenciarEquipe from './GerenciarEquipe';
+import EscalaLiturgica from './EscalaLiturgica'; // Vamos criar este arquivo em seguida
 
 const Dashboard = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [servos, setServos] = useState([]); // Estado para guardar os servos do banco
+  const [servos, setServos] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [abaAtiva, setAbaAtiva] = useState('banco'); // Controla qual tela exibir: 'banco' ou 'escala'
 
-  // Função para buscar servos no banco de dados
   const buscarServos = async () => {
     try {
       const response = await fetch('https://escala-paroquial.onrender.com/servos');
@@ -20,15 +21,13 @@ const Dashboard = () => {
     }
   };
 
-  // Busca os dados ao carregar a página
   useEffect(() => {
     buscarServos();
   }, []);
 
-  // Função para fechar o modal e atualizar a lista do fundo automaticamente
   const handleCloseModal = () => {
     setIsModalOpen(false);
-    buscarServos(); // Atualiza os cards quando você termina de gerenciar
+    buscarServos(); 
   };
 
   return (
@@ -42,12 +41,28 @@ const Dashboard = () => {
         </div>
 
         <nav className="flex-1 px-4 space-y-2">
-          <button className="flex items-center gap-3 w-full px-4 py-3 bg-purple-600/20 text-purple-300 rounded-lg border border-purple-500/30">
+          {/* Botão Banco de Servos */}
+          <button 
+            onClick={() => setAbaAtiva('banco')}
+            className={`flex items-center gap-3 w-full px-4 py-3 rounded-lg transition-colors ${
+              abaAtiva === 'banco' 
+              ? 'bg-purple-600/20 text-purple-300 border border-purple-500/30' 
+              : 'text-gray-400 hover:bg-slate-800'
+            }`}
+          >
             <Users size={20} />
             <span className="font-medium">Banco de Servos</span>
           </button>
           
-          <button className="flex items-center gap-3 w-full px-4 py-3 text-gray-400 hover:bg-slate-800 rounded-lg transition-colors">
+          {/* Botão Escala Litúrgica */}
+          <button 
+            onClick={() => setAbaAtiva('escala')}
+            className={`flex items-center gap-3 w-full px-4 py-3 rounded-lg transition-colors ${
+              abaAtiva === 'escala' 
+              ? 'bg-purple-600/20 text-purple-300 border border-purple-500/30' 
+              : 'text-gray-400 hover:bg-slate-800'
+            }`}
+          >
             <Calendar size={20} />
             <span>Escala Litúrgica</span>
           </button>
@@ -69,7 +84,7 @@ const Dashboard = () => {
         </div>
       </aside>
 
-      {/* CONTEÚDO PRINCIPAL */}
+      {/* CONTEÚDO DINÂMICO */}
       <main className="flex-1 flex flex-col overflow-hidden">
         
         <header className="bg-white p-4 shadow-sm md:hidden flex justify-between items-center">
@@ -77,59 +92,66 @@ const Dashboard = () => {
           <button><Menu /></button>
         </header>
 
-        <div className="flex-1 overflow-auto p-8">
-          <div className="flex justify-between items-end mb-8">
-            <div>
-              <h2 className="text-3xl font-bold text-slate-800">Banco de Servos</h2>
-              <p className="text-gray-500 mt-2">Visualize os servos reais cadastrados.</p>
-            </div>
-            
-            <button 
-              onClick={() => setIsModalOpen(true)}
-              className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg shadow-lg font-bold flex items-center gap-2 transition-transform hover:scale-105"
-            >
-              <Users size={20} />
-              Gerenciar Equipe
-            </button>
-          </div>
-
-          {/* LISTA DE CARDS DINÂMICA */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {loading ? (
-              <p className="col-span-full text-center text-gray-500">Carregando dados do banco...</p>
-            ) : servos.length === 0 ? (
-              <p className="col-span-full text-center text-gray-500">Nenhum servo encontrado.</p>
-            ) : (
-              servos.map((servo) => (
-                <div key={servo.id} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-                  <div className="flex items-center gap-4 mb-4">
-                    <div className="w-12 h-12 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-xl font-bold">
-                      {servo.name ? servo.name[0].toUpperCase() : "👤"}
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-gray-800">{servo.name || "Sem Nome"}</h3>
-                      <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">Ativo</span>
-                    </div>
-                  </div>
-                  <div className="flex gap-2 flex-wrap">
-                    {servo.roles && servo.roles.length > 0 ? (
-                      servo.roles.map((funcao) => (
-                        <span key={funcao} className="text-xs border border-purple-100 bg-purple-50 px-2 py-1 rounded text-purple-600">
-                          {funcao}
-                        </span>
-                      ))
-                    ) : (
-                      <span className="text-xs text-gray-400 italic">Nenhuma função</span>
-                    )}
-                  </div>
+        <div className="flex-1 overflow-auto">
+          {abaAtiva === 'banco' ? (
+            /* CONTEÚDO ORIGINAL DO BANCO DE SERVOS */
+            <div className="p-8">
+              <div className="flex justify-between items-end mb-8">
+                <div>
+                  <h2 className="text-3xl font-bold text-slate-800">Banco de Servos</h2>
+                  <p className="text-gray-500 mt-2">Visualize os servos reais cadastrados.</p>
                 </div>
-              ))
-            )}
-          </div>
+                
+                <button 
+                  onClick={() => setIsModalOpen(true)}
+                  className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg shadow-lg font-bold flex items-center gap-2 transition-transform hover:scale-105"
+                >
+                  <Users size={20} />
+                  Gerenciar Equipe
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {loading ? (
+                  <p className="col-span-full text-center text-gray-500">Carregando dados do banco...</p>
+                ) : servos.length === 0 ? (
+                  <p className="col-span-full text-center text-gray-500">Nenhum servo encontrado.</p>
+                ) : (
+                  servos.map((servo) => (
+                    <div key={servo.id} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+                      <div className="flex items-center gap-4 mb-4">
+                        <div className="w-12 h-12 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-xl font-bold">
+                          {servo.name ? servo.name[0].toUpperCase() : "👤"}
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-gray-800">{servo.name || "Sem Nome"}</h3>
+                          <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">Ativo</span>
+                        </div>
+                      </div>
+                      <div className="flex gap-2 flex-wrap">
+                        {servo.roles && servo.roles.length > 0 ? (
+                          servo.roles.map((funcao) => (
+                            <span key={funcao} className="text-xs border border-purple-100 bg-purple-50 px-2 py-1 rounded text-purple-600">
+                              {funcao}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-xs text-gray-400 italic">Nenhuma função</span>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          ) : (
+            /* NOVO COMPONENTE DE ESCALA */
+            <EscalaLiturgica servos={servos} />
+          )}
         </div>
       </main>
 
-      {/* MODAL */}
+      {/* MODAL GERENCIAR EQUIPE */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
            <div 
