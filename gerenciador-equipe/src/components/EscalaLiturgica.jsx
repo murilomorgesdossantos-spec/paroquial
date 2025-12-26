@@ -1,34 +1,28 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Download, RefreshCw, CheckCircle2, UserMinus } from 'lucide-react';
+import { Calendar, Download, RefreshCw, UserMinus, CheckCircle2 } from 'lucide-react';
+import html2pdf from 'html2pdf.js';
+
+// Importação do logotipo
+import logoImg from '../assets/logo.jpg';
 
 const EscalaLiturgica = () => {
   const [servos, setServos] = useState([]);
   const [escalaGerada, setEscalaGerada] = useState(null);
   const [ausentes, setAusentes] = useState([]);
-  const [tipoMissa, setTipoMissa] = useState('comum'); // 'comum' ou 'solene'
+  const [dataMissa, setDataMissa] = useState('');
+  const [isSolene, setIsSolene] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  // 1. REGRAS DE QUANTIDADE CONFORME SOLICITADO
-  const funcoesMissa = {
-    solene: [
-      "Cerimonial 1", "Cerimonial 2", "Turiferário", "Naveteiro", "Cruciferário", 
-      "Librífero", "Microfone", "Altar 1", "Altar 2", "Intenções 1", "Intenções 2", 
-      "Ofertório 1", "Ofertório 2", "Ofertório 3", "Ofertório 4",
-      "Ceriferário 1", "Ceriferário 2", "Ceriferário 3", "Ceriferário 4", "Ceriferário 5", "Ceriferário 6"
-    ],
-    comum: [
-      "Cerimonial 1", "Cerimonial 2", "Cruciferário", "Librífero", "Microfone", 
-      "Altar 1", "Altar 2", "Intenções 1", "Intenções 2", 
-      "Ofertório 1", "Ofertório 2", "Ofertório 3", "Ofertório 4",
-      "Ceriferário 1", "Ceriferário 2", "Ceriferário 3", "Ceriferário 4", "Ceriferário 5", "Ceriferário 6"
-    ]
-  };
+  const funcoesBase = [
+    "Cerimonial 1", "Cerimonial 2", "Turiferário", "Naveteiro", "Cruciferário", 
+    "Librífero", "Microfone", "Altar 1", "Altar 2", "Intenções 1", "Intenções 2", 
+    "Ofertório 1", "Ofertório 2", "Ofertório 3", "Ofertório 4",
+    "Ceriferário 1", "Ceriferário 2", "Ceriferário 3", "Ceriferário 4", "Ceriferário 5", "Ceriferário 6"
+  ];
 
-  useEffect(() => {
-    fetchServosParaFila();
-  }, []);
+  useEffect(() => { fetchFila(); }, []);
 
-  const fetchServosParaFila = async () => {
+  const fetchFila = async () => {
     try {
       const res = await fetch('https://escala-paroquial.onrender.com/proximos-da-fila');
       const data = await res.json();
@@ -39,152 +33,142 @@ const EscalaLiturgica = () => {
   };
 
   const toggleAusente = (id) => {
-    setAusentes(prev => 
-      prev.includes(id) ? prev.filter(a => a !== id) : [...prev, id]
-    );
+    setAusentes(prev => prev.includes(id) ? prev.filter(a => a !== id) : [...prev, id]);
   };
 
-  // 2. LÓGICA DE GERAÇÃO QUE ENCAIXA OS SERVOS DISPONÍVEIS
-  const gerarEscalaAuto = () => {
-    const funcoesNecessarias = funcoesMissa[tipoMissa];
-    const disponiveis = servos.filter(s => !ausentes.includes(s.id));
-
-    if (disponiveis.length < funcoesNecessarias.length) {
-      alert(`Quantidade insuficiente! A missa ${tipoMissa} precisa de ${funcoesNecessarias.length} servos, mas apenas ${disponiveis.length} estão disponíveis.`);
-      return;
-    }
-
-    const novaEscala = funcoesNecessarias.map((funcao, index) => ({
-      funcao,
-      servo_id: disponiveis[index].id,
-      servo_nome: disponiveis[index].name
-    }));
-
+  const gerarEscalaSemanal = () => {
+    if (!dataMissa) { alert("Por favor, digite a data da missa."); return; }
+    let filaDisponivel = servos.filter(s => !ausentes.includes(s.id));
+    
+    const novaEscala = funcoesBase.map(funcao => {
+      if (!isSolene && (funcao === "Turiferário" || funcao === "Naveteiro")) {
+        return { funcao, servo_nome: "-/-", servo_id: null };
+      }
+      if (filaDisponivel.length > 0) {
+        const sorteado = filaDisponivel.shift();
+        return { funcao, servo_nome: sorteado.name, servo_id: sorteado.id };
+      }
+      return { funcao, servo_nome: "-/-", servo_id: null };
+    });
     setEscalaGerada(novaEscala);
   };
 
-  const confirmarESalvarNoBanco = async () => {
-    if (!confirm("Deseja oficializar esta escala no histórico?")) return;
-    
-    setIsLoading(true);
-    try {
-      const response = await fetch('https://escala-paroquial.onrender.com/historico', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          escala: escalaGerada.map(e => ({ servo_id: e.servo_id, funcao: e.funcao })) 
-        })
-      });
-
-      if (response.ok) {
-        alert("Escala salva e rodízio atualizado!");
-        setEscalaGerada(null);
-        fetchServosParaFila(); 
-      }
-    } catch (error) {
-      alert("Erro ao salvar escala.");
-    } finally {
-      setIsLoading(false);
-    }
+  const baixarPDF = () => {
+    const element = document.getElementById('tabela-impressao');
+    const opt = {
+      margin: [10, 10, 10, 10],
+      filename: `Escala_Coroinhas_${dataMissa.replace(/\//g, '-')}.pdf`,
+      image: { type: 'jpeg', quality: 1 },
+      html2canvas: { scale: 4, useCORS: true, letterRendering: true },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+    html2pdf().from(element).set(opt).save();
   };
 
   return (
-    <div className="p-8 max-w-6xl mx-auto flex flex-col gap-8">
-      <div>
-        <h2 className="text-3xl font-bold text-slate-800">Gerador de Escala</h2>
-        <p className="text-gray-500">Rodízio automático respeitando as quantidades da missa {tipoMissa}.</p>
+    <div className="p-8 max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
+      
+      {/* PAINEL DE CONFIGURAÇÃO */}
+      <div className="space-y-6">
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+          <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2 underline decoration-purple-500 decoration-2">
+            <Calendar size={20}/> Configurar Escala
+          </h3>
+          
+          <div className="space-y-4">
+            <input 
+              type="text" placeholder="Data da Missa (Ex: 30/11)" 
+              className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-purple-500 transition-all"
+              value={dataMissa}
+              onChange={(e) => setDataMissa(e.target.value)}
+            />
+
+            <label className="flex items-center justify-between p-3 bg-slate-50 rounded-xl cursor-pointer hover:bg-slate-100 transition-colors">
+              <span className="text-sm font-bold text-slate-700">Missa Solene?</span>
+              <input type="checkbox" checked={isSolene} onChange={() => setIsSolene(!isSolene)} className="w-5 h-5 accent-purple-600" />
+            </label>
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col max-h-[350px]">
+          <h3 className="font-bold text-red-600 mb-3 flex items-center gap-2"><UserMinus size={20}/> Lista de Ausentes</h3>
+          <div className="overflow-y-auto pr-2 space-y-1 custom-scrollbar">
+            {servos.map(s => (
+              <button 
+                key={s.id} onClick={() => toggleAusente(s.id)}
+                className={`w-full text-left p-2.5 rounded-lg text-sm font-medium transition-all ${ausentes.includes(s.id) ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-slate-50 text-slate-600 hover:bg-slate-200'}`}
+              >
+                {s.name}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <button 
+          onClick={gerarEscalaSemanal}
+          className="w-full bg-purple-600 text-white py-4 rounded-2xl font-black shadow-lg shadow-purple-200 hover:bg-purple-700 active:scale-95 transition-all flex items-center justify-center gap-2"
+        >
+          <RefreshCw size={22} /> GERAR TABELA
+        </button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="space-y-6">
-          {/* SELEÇÃO TIPO DE MISSA */}
-          <div className="bg-white p-6 rounded-xl shadow-sm border">
-            <h3 className="font-bold mb-4 flex items-center gap-2"><Calendar size={18}/> 1. Tipo de Missa</h3>
-            <div className="flex gap-2">
-              <button 
-                onClick={() => { setTipoMissa('comum'); setEscalaGerada(null); }}
-                className={`flex-1 py-2 rounded-lg font-medium border ${tipoMissa === 'comum' ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-gray-600'}`}
-              >
-                Comum
-              </button>
-              <button 
-                onClick={() => { setTipoMissa('solene'); setEscalaGerada(null); }}
-                className={`flex-1 py-2 rounded-lg font-medium border ${tipoMissa === 'solene' ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-gray-600'}`}
-              >
-                Solene
-              </button>
-            </div>
-          </div>
+      {/* ÁREA DA TABELA / VISUALIZAÇÃO */}
+      <div className="lg:col-span-2 space-y-4">
+        {escalaGerada ? (
+          <>
+            <button onClick={baixarPDF} className="w-full bg-orange-500 hover:bg-orange-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-md transition-all">
+              <Download size={20}/> BAIXAR ESCALA OFICIAL (PDF)
+            </button>
 
-          {/* LISTA DE AUSENTES */}
-          <div className="bg-white p-6 rounded-xl shadow-sm border max-h-[400px] flex flex-col">
-            <h3 className="font-bold mb-2 flex items-center gap-2"><UserMinus size={18}/> 2. Quem NÃO participa?</h3>
-            <div className="overflow-y-auto space-y-2 pr-2">
-              {servos.map(s => (
-                <button 
-                  key={s.id}
-                  onClick={() => toggleAusente(s.id)}
-                  className={`w-full flex justify-between items-center p-2 rounded-md text-sm transition-colors ${ausentes.includes(s.id) ? 'bg-red-50 text-red-600 border border-red-200' : 'bg-gray-50 text-gray-700 border border-transparent hover:border-gray-300'}`}
-                >
-                  {s.name}
-                  {ausentes.includes(s.id) && <span className="text-[10px] font-bold uppercase">Falta</span>}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <button 
-            onClick={gerarEscalaAuto}
-            className="w-full bg-purple-600 hover:bg-purple-700 text-white py-4 rounded-xl shadow-lg font-bold flex items-center justify-center gap-2 transition-all active:scale-95"
-          >
-            <RefreshCw size={20} /> GERAR ESCALAMENTO
-          </button>
-        </div>
-
-        {/* TABELA DE RESULTADOS */}
-        <div className="lg:col-span-2">
-          <div className="bg-white rounded-xl shadow-sm border min-h-[500px] flex flex-col p-8">
-            {escalaGerada ? (
-              <>
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-xl font-bold text-slate-800">Escala Proposta ({escalaGerada.length} pessoas)</h3>
-                </div>
-
-                <table className="w-full text-left">
-                  <thead>
-                    <tr className="text-gray-400 text-xs uppercase tracking-wider border-b">
-                      <th className="pb-3">Função</th>
-                      <th className="pb-3">Servo</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {escalaGerada.map((item, idx) => (
-                      <tr key={idx} className="hover:bg-slate-50">
-                        <td className="py-2 text-sm font-medium text-slate-600">{item.funcao}</td>
-                        <td className="py-2 text-sm font-bold text-purple-700">{item.servo_nome}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-
-                <div className="mt-8 flex gap-4">
-                  <button 
-                    onClick={confirmarESalvarNoBanco}
-                    disabled={isLoading}
-                    className="flex-1 bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-bold flex items-center justify-center gap-2"
-                  >
-                    {isLoading ? "Salvando..." : <><CheckCircle2 size={20}/> Confirmar e Salvar</>}
-                  </button>
-                </div>
-              </>
-            ) : (
-              <div className="flex-1 flex flex-col items-center justify-center text-gray-400 text-center">
-                <Calendar size={48} className="opacity-10 mb-4" />
-                <p>Configure a missa e clique em Gerar.</p>
+            {/* DOCUMENTO PARA PDF */}
+            <div id="tabela-impressao" className="bg-white p-12 text-black" style={{ fontFamily: 'Arial, sans-serif' }}>
+              
+              {/* CABEÇALHO COM LOGO */}
+              <div className="flex flex-col items-center mb-8">
+                <img src={logoImg} alt="Pastoral Logo" className="h-24 mb-4" />
+                <h1 className="text-3xl font-black text-orange-600 uppercase tracking-tight">Pastoral Coroinhas</h1>
+                <p className="text-lg font-bold text-slate-700">Paróquia São Pedro e São Paulo</p>
+                <div className="w-full h-1 bg-orange-500 mt-2"></div>
               </div>
-            )}
+
+              <div className="text-center mb-6 py-2 bg-slate-100 border-y border-slate-300">
+                <span className="text-xl font-black uppercase">Escala Litúrgica - {dataMissa}</span>
+              </div>
+
+              <table className="w-full border-collapse border-2 border-black">
+                <thead>
+                  <tr className="bg-orange-500">
+                    <th className="border-2 border-black p-3 text-left text-white uppercase text-sm font-black">Função</th>
+                    <th className="border-2 border-black p-3 text-center text-white uppercase text-sm font-black">Servo Escalado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {escalaGerada.map((item, idx) => (
+                    <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-orange-50'}>
+                      <td className="border border-slate-400 p-2 font-bold text-xs uppercase text-slate-800">{item.funcao}</td>
+                      <td className={`border border-slate-400 p-2 text-center text-sm font-black ${item.servo_nome === "-/-" ? 'text-slate-300' : 'text-black'}`}>
+                        {item.servo_nome}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              <div className="mt-10 pt-4 border-t border-slate-200 flex justify-between text-[10px] text-slate-400 italic">
+                <span>© Sistema de Gestão Paroquial</span>
+                <span>Documento gerado em {new Date().toLocaleDateString()}</span>
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="h-full min-h-[500px] bg-white rounded-3xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center text-slate-300 p-10 text-center">
+            <div className="bg-slate-50 p-6 rounded-full mb-4">
+              <Calendar size={64} className="opacity-20"/>
+            </div>
+            <p className="text-xl font-bold text-slate-400">Pronto para gerar?</p>
+            <p className="text-sm max-w-xs">Defina a data e os ausentes ao lado para criar a tabela semanal.</p>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
