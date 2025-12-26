@@ -37,7 +37,7 @@ const EscalaLiturgica = () => {
   };
 
   const gerarEscalaSemanal = () => {
-    if (!dataMissa) { alert("Por favor, selecione a data da missa."); return; }
+    if (!dataMissa) { alert("Por favor, selecione a data da missa no calendário."); return; }
     let filaDisponivel = servos.filter(s => !ausentes.includes(s.id));
     
     const novaEscala = funcoesBase.map(funcao => {
@@ -53,51 +53,61 @@ const EscalaLiturgica = () => {
     setEscalaGerada(novaEscala);
   };
 
-  // FUNÇÃO PARA SALVAR NO BANCO DE DADOS
+  // Função para exibir data no padrão BR (DD/MM/AAAA)
+  const formatarDataBR = (dataISO) => {
+    if (!dataISO) return "";
+    const [ano, mes, dia] = dataISO.split('-');
+    return `${dia}/${mes}/${ano}`;
+  };
+
   const salvarNoBanco = async () => {
     if (!escalaGerada) return;
-    if (!confirm(`Deseja salvar esta escala no histórico dos servos para a data ${formatarDataExibicao(dataMissa)}?`)) return;
+    if (!confirm(`Deseja salvar esta escala no histórico para a data ${formatarDataBR(dataMissa)}?`)) return;
 
     setIsSaving(true);
-    try {
-      // Filtra apenas funções que têm servos escalados
-      const escalados = escalaGerada.filter(item => item.servo_id !== null);
+    let duplicadosCount = 0;
+    const escalados = escalaGerada.filter(item => item.servo_id !== null);
 
-      // Envia cada registro individualmente para o seu endpoint de histórico manual
-      const promises = escalados.map(item => 
-        fetch('https://escala-paroquial.onrender.com/historico/manual', {
+    try {
+      const promises = escalados.map(async (item) => {
+        const response = await fetch('https://escala-paroquial.onrender.com/historico/manual', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
-            servo_id: item.servo_id, 
+            servo_id: item.servo_id,
+            nome_servo: item.servo_nome, // Nome adicionado conforme pedido
             funcao: item.funcao, 
             data_escala: dataMissa 
           })
-        })
-      );
+        });
+
+        if (response.status === 409) {
+          duplicadosCount++;
+        }
+        return response;
+      });
 
       await Promise.all(promises);
-      alert("Escala salva no histórico com sucesso!");
-      fetchFila(); // Atualiza a fila principal
+
+      if (duplicadosCount === escalados.length) {
+        alert("Esta escala já foi salva exatamente igual para esta data. Operação cancelada para evitar duplicidade.");
+      } else {
+        alert("Escala salva no histórico com sucesso!");
+        fetchFila(); // Atualiza a fila
+      }
     } catch (error) {
       console.error("Erro ao salvar escala:", error);
-      alert("Erro ao salvar alguns registros.");
+      alert("Erro ao conectar com o servidor.");
     } finally {
       setIsSaving(false);
     }
-  };
-
-  const formatarDataExibicao = (dataRaw) => {
-    if (!dataRaw) return "";
-    const [ano, mes, dia] = dataRaw.split('-');
-    return `${dia}/${mes}/${ano}`;
   };
 
   const baixarPDF = () => {
     const element = document.getElementById('tabela-impressao');
     const opt = {
       margin: [10, 10, 10, 10],
-      filename: `Escala_${dataMissa}.pdf`,
+      filename: `Escala_${formatarDataBR(dataMissa).replace(/\//g, '-')}.pdf`,
       image: { type: 'jpeg', quality: 1 },
       html2canvas: { scale: 4, useCORS: true },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
@@ -114,7 +124,7 @@ const EscalaLiturgica = () => {
           <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2 underline decoration-purple-500 decoration-2">
             <Calendar size={20}/> Configurar Escala
           </h3>
-          <div className="space-y-4">
+          <div className="space-y-4 text-left">
             <div>
               <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Data da Missa</label>
               <input 
@@ -132,7 +142,7 @@ const EscalaLiturgica = () => {
         </div>
 
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col max-h-[350px]">
-          <h3 className="font-bold text-red-600 mb-3 flex items-center gap-2"><UserMinus size={20}/> Lista de Ausentes</h3>
+          <h3 className="font-bold text-red-600 mb-3 flex items-center gap-2 text-left"><UserMinus size={20}/> Lista de Ausentes</h3>
           <div className="overflow-y-auto pr-2 space-y-1 custom-scrollbar">
             {servos.map(s => (
               <button 
@@ -183,7 +193,9 @@ const EscalaLiturgica = () => {
               </div>
 
               <div className="text-center mb-6 py-2 bg-slate-100 border-y border-slate-300">
-                <span className="text-xl font-black uppercase">Escala Litúrgica - {formatarDataExibicao(dataMissa)}</span>
+                <span className="text-xl font-black uppercase">
+                   Escala Litúrgica - {formatarDataBR(dataMissa)}
+                </span>
               </div>
 
               <table className="w-full border-collapse border-2 border-black">

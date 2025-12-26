@@ -13,7 +13,6 @@ app.use(express.static(path.join(__dirname, 'gerenciador-equipe', 'dist')));
 // --- 1. ROTA DE LOGIN ---
 app.post('/login', (req, res) => {
     const { usuario, senha } = req.body;
-    // Consulta na tabela ParoquiaLogins
     const sql = "SELECT * FROM ParoquiaLogins WHERE usuario = $1 AND senha = $2";
     
     db.query(sql, [usuario, senha], (err, result) => {
@@ -36,7 +35,6 @@ app.post('/login', (req, res) => {
 
 // --- 2. GERENCIAMENTO DE SERVOS ---
 
-// Buscar todos os servos
 app.get('/servos', (req, res) => {
     const sql = "SELECT * FROM servos ORDER BY id ASC";
     db.query(sql, (err, result) => {
@@ -52,7 +50,6 @@ app.get('/servos', (req, res) => {
     });
 });
 
-// Adicionar novo servo
 app.post('/servos', (req, res) => {
     const { nome } = req.body; 
     const sql = "INSERT INTO servos (name, roles) VALUES ($1, $2) RETURNING id";
@@ -67,7 +64,6 @@ app.post('/servos', (req, res) => {
     });
 });
 
-// Atualizar funções de um servo
 app.put('/servos/:id', (req, res) => {
     const { id } = req.params;
     let { funcoes } = req.body; 
@@ -80,7 +76,6 @@ app.put('/servos/:id', (req, res) => {
     });
 });
 
-// Deletar servo
 app.delete('/servos/:id', (req, res) => {
     const { id } = req.params;
     db.query("DELETE FROM servos WHERE id = $1", [id], (err) => {
@@ -91,7 +86,6 @@ app.delete('/servos/:id', (req, res) => {
 
 // --- 3. ESCALA LITÚRGICA E HISTÓRICO ---
 
-// Buscar servos ordenados pela última vez que serviram (Lógica de Rodízio)
 app.get('/proximos-da-fila', (req, res) => {
     const sql = `
         SELECT s.id, s.name, MAX(h.data_escala) as ultima_vez
@@ -106,26 +100,8 @@ app.get('/proximos-da-fila', (req, res) => {
     });
 });
 
-// Salvar oficialização de escala no histórico
-app.post('/historico', async (req, res) => {
-    const { escala } = req.body; // Array de {servo_id, funcao}
-    try {
-        const queries = escala.map(item => 
-            db.query(
-                "INSERT INTO historico_escalas (servo_id, funcao, data_escala) VALUES ($1, $2, CURRENT_DATE)", 
-                [item.servo_id, item.funcao]
-            )
-        );
-        await Promise.all(queries);
-        res.send({ message: "Histórico salvo com sucesso" });
-    } catch (err) {
-        res.status(500).send(err);
-    }
-});
+// --- 4. PERFIL DO SERVO E REGISTROS DE HISTÓRICO ---
 
-// --- 4. PERFIL DO SERVO (HISTÓRICO INDIVIDUAL) ---
-
-// Buscar histórico específico de um servo
 app.get('/historico/:servo_id', (req, res) => {
     const { servo_id } = req.params;
     const sql = "SELECT * FROM historico_escalas WHERE servo_id = $1 ORDER BY data_escala DESC";
@@ -135,7 +111,6 @@ app.get('/historico/:servo_id', (req, res) => {
     });
 });
 
-// Deletar um registro específico do histórico
 app.delete('/historico/:id', (req, res) => {
     const { id } = req.params;
     db.query("DELETE FROM historico_escalas WHERE id = $1", [id], (err) => {
@@ -144,14 +119,38 @@ app.delete('/historico/:id', (req, res) => {
     });
 });
 
-// Adicionar registro manual ao histórico
-app.post('/historico/manual', (req, res) => {
-    const { servo_id, funcao, data_escala } = req.body;
-    const sql = "INSERT INTO historico_escalas (servo_id, funcao, data_escala) VALUES ($1, $2, $3)";
-    db.query(sql, [servo_id, funcao, data_escala], (err) => {
-        if (err) return res.status(500).send(err);
-        res.send({ message: "Registro adicionado manualmente" });
-    });
+/**
+ * ROTA ATUALIZADA: Adicionar registro ao histórico
+ * Agora inclui o nome do servo e verifica duplicidade para a mesma data.
+ */
+app.post('/historico/manual', async (req, res) => {
+    const { servo_id, nome_servo, funcao, data_escala } = req.body;
+
+    try {
+        // 1. Verificar se já existe exatamente a mesma escala para este servo nesta data
+        const checkSql = `
+            SELECT id FROM historico_escalas 
+            WHERE servo_id = $1 AND funcao = $2 AND data_escala = $3
+        `;
+        const checkResult = await db.query(checkSql, [servo_id, funcao, data_escala]);
+
+        if (checkResult.rows.length > 0) {
+            // Retorna status 409 (Conflito) se os dados forem idênticos
+            return res.status(409).send({ message: "Este registro já foi confirmado para esta data." });
+        }
+
+        // 2. Inserir incluindo a nova coluna nome_servo
+        const insertSql = `
+            INSERT INTO historico_escalas (servo_id, nome_servo, funcao, data_escala) 
+            VALUES ($1, $2, $3, $4)
+        `;
+        await db.query(insertSql, [servo_id, nome_servo, funcao, data_escala]);
+        
+        res.send({ message: "Registro adicionado com sucesso" });
+    } catch (err) {
+        console.error("Erro ao processar histórico:", err);
+        res.status(500).send({ error: "Erro ao processar histórico" });
+    }
 });
 
 // --- ROTA CORINGA ---
