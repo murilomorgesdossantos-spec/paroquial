@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Calendar, Settings, Menu } from 'lucide-react';
+import { Users, Calendar, Settings, Menu, LogOut } from 'lucide-react';
 import GerenciarEquipe from './GerenciarEquipe';
-import EscalaLiturgica from './EscalaLiturgica'; // Vamos criar este arquivo em seguida
+import EscalaLiturgica from './EscalaLiturgica';
+import ModalPerfil from './ModalPerfil'; // Certifique-se de criar este arquivo com o código enviado anteriormente
 
-const Dashboard = () => {
+const Dashboard = ({ onLogout }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [servos, setServos] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [abaAtiva, setAbaAtiva] = useState('banco'); // Controla qual tela exibir: 'banco' ou 'escala'
+  const [abaAtiva, setAbaAtiva] = useState('banco');
+  const [servoSelecionado, setServoSelecionado] = useState(null); // Estado para o balão clicado
 
   const buscarServos = async () => {
     try {
@@ -41,26 +43,20 @@ const Dashboard = () => {
         </div>
 
         <nav className="flex-1 px-4 space-y-2">
-          {/* Botão Banco de Servos */}
           <button 
             onClick={() => setAbaAtiva('banco')}
             className={`flex items-center gap-3 w-full px-4 py-3 rounded-lg transition-colors ${
-              abaAtiva === 'banco' 
-              ? 'bg-purple-600/20 text-purple-300 border border-purple-500/30' 
-              : 'text-gray-400 hover:bg-slate-800'
+              abaAtiva === 'banco' ? 'bg-purple-600/20 text-purple-300 border border-purple-500/30' : 'text-gray-400 hover:bg-slate-800'
             }`}
           >
             <Users size={20} />
             <span className="font-medium">Banco de Servos</span>
           </button>
           
-          {/* Botão Escala Litúrgica */}
           <button 
             onClick={() => setAbaAtiva('escala')}
             className={`flex items-center gap-3 w-full px-4 py-3 rounded-lg transition-colors ${
-              abaAtiva === 'escala' 
-              ? 'bg-purple-600/20 text-purple-300 border border-purple-500/30' 
-              : 'text-gray-400 hover:bg-slate-800'
+              abaAtiva === 'escala' ? 'bg-purple-600/20 text-purple-300 border border-purple-500/30' : 'text-gray-400 hover:bg-slate-800'
             }`}
           >
             <Calendar size={20} />
@@ -70,6 +66,15 @@ const Dashboard = () => {
           <button className="flex items-center gap-3 w-full px-4 py-3 text-gray-400 hover:bg-slate-800 rounded-lg transition-colors">
             <Settings size={20} />
             <span>Configurações</span>
+          </button>
+
+          {/* Botão Sair */}
+          <button 
+            onClick={onLogout}
+            className="flex items-center gap-3 w-full px-4 py-3 text-red-400 hover:bg-red-900/20 rounded-lg transition-colors mt-10"
+          >
+            <LogOut size={20} />
+            <span>Sair do Sistema</span>
           </button>
         </nav>
 
@@ -86,7 +91,6 @@ const Dashboard = () => {
 
       {/* CONTEÚDO DINÂMICO */}
       <main className="flex-1 flex flex-col overflow-hidden">
-        
         <header className="bg-white p-4 shadow-sm md:hidden flex justify-between items-center">
           <h1 className="font-bold text-slate-800">Escala Paroquial</h1>
           <button><Menu /></button>
@@ -94,12 +98,11 @@ const Dashboard = () => {
 
         <div className="flex-1 overflow-auto">
           {abaAtiva === 'banco' ? (
-            /* CONTEÚDO ORIGINAL DO BANCO DE SERVOS */
             <div className="p-8">
               <div className="flex justify-between items-end mb-8">
                 <div>
                   <h2 className="text-3xl font-bold text-slate-800">Banco de Servos</h2>
-                  <p className="text-gray-500 mt-2">Visualize os servos reais cadastrados.</p>
+                  <p className="text-gray-500 mt-2">Clique no balão de um servo para gerenciar seu histórico.</p>
                 </div>
                 
                 <button 
@@ -118,9 +121,13 @@ const Dashboard = () => {
                   <p className="col-span-full text-center text-gray-500">Nenhum servo encontrado.</p>
                 ) : (
                   servos.map((servo) => (
-                    <div key={servo.id} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+                    <div 
+                      key={servo.id} 
+                      onClick={() => setServoSelecionado(servo)} // DISPARA O MODAL DE PERFIL
+                      className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all cursor-pointer hover:border-purple-300 group"
+                    >
                       <div className="flex items-center gap-4 mb-4">
-                        <div className="w-12 h-12 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-xl font-bold">
+                        <div className="w-12 h-12 bg-purple-100 text-purple-600 group-hover:bg-purple-600 group-hover:text-white rounded-full flex items-center justify-center text-xl font-bold transition-colors">
                           {servo.name ? servo.name[0].toUpperCase() : "👤"}
                         </div>
                         <div>
@@ -131,7 +138,7 @@ const Dashboard = () => {
                       <div className="flex gap-2 flex-wrap">
                         {servo.roles && servo.roles.length > 0 ? (
                           servo.roles.map((funcao) => (
-                            <span key={funcao} className="text-xs border border-purple-100 bg-purple-50 px-2 py-1 rounded text-purple-600">
+                            <span key={funcao} className="text-[10px] border border-purple-100 bg-purple-50 px-2 py-0.5 rounded text-purple-600 font-medium">
                               {funcao}
                             </span>
                           ))
@@ -145,24 +152,27 @@ const Dashboard = () => {
               </div>
             </div>
           ) : (
-            /* NOVO COMPONENTE DE ESCALA */
             <EscalaLiturgica servos={servos} />
           )}
         </div>
       </main>
 
-      {/* MODAL GERENCIAR EQUIPE */}
+      {/* MODAL GERENCIAR EQUIPE (Lista Geral) */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-           <div 
-             className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
-             onClick={handleCloseModal}
-           ></div>
-           
-           <div className="relative z-10 w-full max-w-5xl px-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={handleCloseModal}></div>
+           <div className="relative z-10 w-full max-w-5xl">
              <GerenciarEquipe onClose={handleCloseModal} />
            </div>
         </div>
+      )}
+
+      {/* MODAL PERFIL INDIVIDUAL (Histórico e Edição) */}
+      {servoSelecionado && (
+        <ModalPerfil 
+          servo={servoSelecionado} 
+          onClose={() => setServoSelecionado(null)} 
+        />
       )}
 
     </div>
