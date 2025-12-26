@@ -84,19 +84,28 @@ app.delete('/servos/:id', (req, res) => {
     });
 });
 
-// --- 3. ESCALA LITÚRGICA E HISTÓRICO ---
+// --- 3. ESCALA LITÚRGICA E FILA ---
 
+/**
+ * ATUALIZADO: Agora busca também a coluna 'roles'.
+ * Isso é essencial para que o frontend saiba quais funções cada servo pode assumir.
+ */
 app.get('/proximos-da-fila', (req, res) => {
     const sql = `
-        SELECT s.id, s.name, MAX(h.data_escala) as ultima_vez
+        SELECT s.id, s.name, s.roles, MAX(h.data_escala) as ultima_vez
         FROM servos s
         LEFT JOIN historico_escalas h ON s.id = h.servo_id
-        GROUP BY s.id, s.name
+        GROUP BY s.id, s.name, s.roles
         ORDER BY ultima_vez ASC NULLS FIRST, s.id ASC;
     `;
     db.query(sql, (err, result) => {
         if (err) return res.status(500).send(err);
-        res.send(result.rows);
+        // Garante que roles seja um array para não dar erro no frontend
+        const data = result.rows.map(s => ({
+            ...s,
+            roles: Array.isArray(s.roles) ? s.roles : []
+        }));
+        res.send(data);
     });
 });
 
@@ -120,14 +129,14 @@ app.delete('/historico/:id', (req, res) => {
 });
 
 /**
- * ROTA ATUALIZADA: Adicionar registro ao histórico
- * Agora inclui o nome do servo e verifica duplicidade para a mesma data.
+ * Adicionar registro ao histórico com verificação de duplicidade.
+ * Inclui o nome_servo para facilitar visualização no banco de dados.
  */
 app.post('/historico/manual', async (req, res) => {
     const { servo_id, nome_servo, funcao, data_escala } = req.body;
 
     try {
-        // 1. Verificar se já existe exatamente a mesma escala para este servo nesta data
+        // 1. Verificar duplicidade (Servo + Função + Data)
         const checkSql = `
             SELECT id FROM historico_escalas 
             WHERE servo_id = $1 AND funcao = $2 AND data_escala = $3
@@ -135,11 +144,10 @@ app.post('/historico/manual', async (req, res) => {
         const checkResult = await db.query(checkSql, [servo_id, funcao, data_escala]);
 
         if (checkResult.rows.length > 0) {
-            // Retorna status 409 (Conflito) se os dados forem idênticos
-            return res.status(409).send({ message: "Este registro já foi confirmado para esta data." });
+            return res.status(409).send({ message: "Este registro já existe para esta data." });
         }
 
-        // 2. Inserir incluindo a nova coluna nome_servo
+        // 2. Inserir registro
         const insertSql = `
             INSERT INTO historico_escalas (servo_id, nome_servo, funcao, data_escala) 
             VALUES ($1, $2, $3, $4)
