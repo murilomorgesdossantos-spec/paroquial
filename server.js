@@ -1,16 +1,16 @@
 const express = require('express');
 const cors = require('cors');
 const db = require('./db'); 
-const path = require('path'); // <--- 1. Importante: Adicionamos o 'path'
+const path = require('path'); 
 
 const app = express();
 
 app.use(express.json());
 app.use(cors());
 
-// 2. Correção: Serve os arquivos estáticos usando o caminho absoluto
-// Isso garante que o servidor ache a pasta 'public' mesmo no servidor do Render
-app.use(express.static(path.join(__dirname, 'public')));
+// 1. CORREÇÃO PRINCIPAL:
+// Apontamos para a pasta onde o Vite cria o build (dentro da subpasta do projeto)
+app.use(express.static(path.join(__dirname, 'gerenciador-equipe', 'dist')));
 
 // --- SUAS ROTAS DE API (MANTIDAS IGUAIS) ---
 
@@ -67,12 +67,10 @@ app.put('/servos/:id', (req, res) => {
 
 // --- FIM DAS ROTAS DE API ---
 
-// 3. Adição Crucial: Rota "Coringa" (Catch-all)
-// Qualquer rota que NÃO seja uma das APIs acima, vai devolver o site React (index.html)
-// Isso resolve a tela branca e problemas de atualização da página.
-// Usamos /.*/ (sem aspas) que é uma Regex e funciona sempre
+// 2. CORREÇÃO DA ROTA CORINGA:
+// Se não for API, devolve o index.html que está lá na pasta dist
 app.get(/.*/, (req, res) => {
-    res.sendFile(path.join(__dirname, 'www', 'index.html'));
+    res.sendFile(path.join(__dirname, 'gerenciador-equipe', 'dist', 'index.html'));
 });
 
 const PORT = process.env.PORT || 3001;
