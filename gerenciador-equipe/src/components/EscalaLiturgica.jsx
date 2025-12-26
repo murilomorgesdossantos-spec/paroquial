@@ -34,19 +34,13 @@ const EscalaLiturgica = () => {
     setAusentes(prev => prev.includes(id) ? prev.filter(a => a !== id) : [...prev, id]);
   };
 
-  /**
-   * FUNÇÃO DE NORMALIZAÇÃO TOTAL:
-   * 1. Remove acentos (Ex: Ofertório -> Ofertorio)
-   * 2. Remove números e espaços (Ex: Altar 1 -> Altar)
-   * 3. Deixa em minúsculo
-   */
   const simplificarParaSorteio = (texto) => {
     if (!texto) return "";
     return texto
       .toString()
       .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "") // Limpa acentos
-      .replace(/\s+\d+.*$/, "")        // Limpa números e sufixos
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/\s+\d+.*$/, "")
       .toLowerCase()
       .trim();
   };
@@ -54,34 +48,55 @@ const EscalaLiturgica = () => {
   const gerarEscalaSemanal = () => {
     if (!dataMissa) { alert("Selecione a data da missa."); return; }
     
-    // Lista de disponíveis seguindo a ordem de rodízio
     let disponiveis = [...servos].filter(s => !ausentes.includes(s.id));
-    const novaEscala = [];
+    const novaEscalaMap = {};
 
-    funcoesBase.forEach(funcaoNome => {
-      const categoriaRequisitada = simplificarParaSorteio(funcaoNome);
+    // 1. Definição de postos vitais (Um de cada categoria antes de preencher os extras)
+    const postosVitais = [
+      "Cerimonial 1", "Turiferário", "Naveteiro", "Cruciferário", "Librífero", 
+      "Microfone", "Altar 1", "Intenções 1", "Ofertório 1", "Ceriferário 1"
+    ];
 
-      // Regra Solene: Turiferário e Naveteiro
-      if (!isSolene && (categoriaRequisitada === "turiferario" || categoriaRequisitada === "naveteiro")) {
-        novaEscala.push({ funcao: funcaoNome, servo_nome: "-/-", servo_id: null });
-        return;
+    // 2. Postos de apoio (Preenchidos depois que o básico está garantido)
+    const postosApoio = [
+      "Cerimonial 2", "Altar 2", "Intenções 2", "Ofertório 2", "Ofertório 3", "Ofertório 4",
+      "Ceriferário 2", "Ceriferário 3", "Ceriferário 4", "Ceriferário 5", "Ceriferário 6"
+    ];
+
+    const preencherFuncao = (funcaoNome) => {
+      const categoria = simplificarParaSorteio(funcaoNome);
+
+      if (!isSolene && (categoria === "turiferario" || categoria === "naveteiro")) {
+        return { funcao: funcaoNome, servo_nome: "-/-", servo_id: null };
       }
 
-      // Busca o primeiro servo que tenha o cargo (role) compatível ignorando acentos
-      const idx = disponiveis.findIndex(s => {
-        const cargosServo = Array.isArray(s.roles) ? s.roles : [];
-        return cargosServo.some(cargo => simplificarParaSorteio(cargo) === categoriaRequisitada);
-      });
+      // Tenta 1: Cargo exato
+      let idx = disponiveis.findIndex(s => 
+        (s.roles || []).map(r => simplificarParaSorteio(r)).includes(categoria)
+      );
+
+      // Tenta 2: Fallback para não deixar vazio (Polivalência)
+      if (idx === -1) {
+        if (["ceriferario", "cruciferario", "librifero"].includes(categoria)) {
+          idx = disponiveis.findIndex(s => (s.roles || []).map(r => simplificarParaSorteio(r)).includes("altar"));
+        } else if (categoria === "altar") {
+          idx = disponiveis.findIndex(s => (s.roles || []).map(r => simplificarParaSorteio(r)).some(role => ["ofertorio", "intencoes"].includes(role)));
+        }
+      }
 
       if (idx !== -1) {
         const sorteado = disponiveis.splice(idx, 1)[0];
-        novaEscala.push({ funcao: funcaoNome, servo_nome: sorteado.name, servo_id: sorteado.id });
-      } else {
-        novaEscala.push({ funcao: funcaoNome, servo_nome: "-/-", servo_id: null });
+        return { funcao: funcaoNome, servo_nome: sorteado.name, servo_id: sorteado.id };
       }
-    });
+      return { funcao: funcaoNome, servo_nome: "-/-", servo_id: null };
+    };
 
-    setEscalaGerada(novaEscala);
+    // Executa o preenchimento em duas passagens para garantir o equilíbrio
+    postosVitais.forEach(f => { novaEscalaMap[f] = preencherFuncao(f); });
+    postosApoio.forEach(f => { novaEscalaMap[f] = preencherFuncao(f); });
+
+    const escalaFinal = funcoesBase.map(f => novaEscalaMap[f]);
+    setEscalaGerada(escalaFinal);
   };
 
   const formatarDataBR = (dataISO) => {
@@ -114,7 +129,7 @@ const EscalaLiturgica = () => {
       alert("Escala salva com sucesso!");
       fetchFila();
     } catch (error) {
-      alert("Erro ao conectar com o servidor.");
+      alert("Erro ao conectar.");
     } finally {
       setIsSaving(false);
     }
@@ -124,7 +139,7 @@ const EscalaLiturgica = () => {
     const element = document.getElementById('tabela-impressao');
     const opt = {
       margin: 10,
-      filename: `Escala_Coroinhas_${dataMissa}.pdf`,
+      filename: `Escala_${dataMissa}.pdf`,
       image: { type: 'jpeg', quality: 1 },
       html2canvas: { scale: 3, useCORS: true },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
@@ -136,11 +151,11 @@ const EscalaLiturgica = () => {
     <div className="p-8 max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8 font-sans">
       <div className="space-y-6">
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-          <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2 underline decoration-purple-500 decoration-2">Configurar Missa</h3>
+          <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2 underline decoration-purple-500 decoration-2 text-left">Configurar Missa</h3>
           <div className="space-y-4 text-left">
             <div>
               <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Data da Missa</label>
-              <input type="date" className="w-full p-3 bg-slate-50 border rounded-xl outline-none" value={dataMissa} onChange={(e) => setDataMissa(e.target.value)} />
+              <input type="date" className="w-full p-3 bg-slate-50 border rounded-xl outline-none focus:ring-2 focus:ring-purple-500" value={dataMissa} onChange={(e) => setDataMissa(e.target.value)} />
             </div>
             <label className="flex items-center justify-between p-3 bg-slate-50 rounded-xl cursor-pointer hover:bg-slate-100 transition-colors">
               <span className="text-sm font-bold text-slate-700">Missa Solene?</span>
@@ -165,7 +180,7 @@ const EscalaLiturgica = () => {
         </button>
       </div>
 
-      <div className="lg:col-span-2 space-y-4">
+      <div className="lg:col-span-2 space-y-4 text-center">
         {escalaGerada ? (
           <>
             <div className="flex gap-3">
@@ -178,7 +193,7 @@ const EscalaLiturgica = () => {
             <div id="tabela-impressao" className="bg-white p-12 text-black border rounded-xl shadow-sm">
               <div className="flex flex-col items-center mb-8">
                 <img src={logoImg} alt="Logo" className="h-24 mb-4" />
-                <h1 className="text-3xl font-black text-orange-600 uppercase">Pastoral Coroinhas</h1>
+                <h1 className="text-3xl font-black text-orange-600 uppercase tracking-tighter">Pastoral Coroinhas</h1>
                 <p className="text-lg font-bold text-slate-700 text-center">Paróquia São Pedro e São Paulo</p>
                 <div className="w-full h-1 bg-orange-500 mt-2"></div>
               </div>
@@ -211,7 +226,6 @@ const EscalaLiturgica = () => {
           <div className="h-full min-h-[500px] bg-white rounded-3xl border-2 border-dashed flex flex-col items-center justify-center text-slate-400 p-10 text-center">
             <Calendar size={64} className="opacity-20 mb-4 text-purple-600"/>
             <p className="text-xl font-bold">Aguardando geração da escala...</p>
-            <p className="text-sm">Selecione a data e clique no botão roxo ao lado.</p>
           </div>
         )}
       </div>
