@@ -8,12 +8,11 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
-// 1. Servir arquivos estáticos do Frontend (Vite)
 app.use(express.static(path.join(__dirname, 'gerenciador-equipe', 'dist')));
 
-// --- ROTAS DE API CORRIGIDAS ---
+// --- ROTAS DE API BLINDADAS ---
 
-// BUSCAR (GET) - Corrigido para não quebrar o Frontend
+// BUSCAR (GET) - Garante que NOME nunca seja undefined
 app.get('/servos', (req, res) => {
     const sql = "SELECT * FROM servos ORDER BY id ASC";
     db.query(sql, (err, result) => {
@@ -22,37 +21,34 @@ app.get('/servos', (req, res) => {
             return res.status(500).send({ error: "Erro ao buscar dados" });
         }
         
-        // MAPEAMENTO: Converte os nomes das colunas do banco (inglês) 
-        // para o formato que o seu Frontend React espera (português)
+        // Mapeamento com proteção: se o campo 'name' estiver nulo no banco, enviamos ""
         const servosFormatados = result.rows.map(servo => ({
             id: servo.id,
-            nome: servo.name || "",      // 'name' vira 'nome' (evita erro de toLowerCase)
-            funcoes: servo.roles || []    // 'roles' vira 'funcoes'
+            nome: servo.name || "Sem Nome", // Proteção contra o erro 'toLowerCase'
+            funcoes: Array.isArray(servo.roles) ? servo.roles : [] 
         }));
 
         res.send(servosFormatados); 
     });
 });
 
-// ADICIONAR (POST) - Corrigido erro de Array e mapeamento
+// ADICIONAR (POST)
 app.post('/servos', (req, res) => {
     const { nome } = req.body; 
     
-    // Usamos $2 como parâmetro para o array vazio, evitando erro de aspas/colchetes
+    // Inserindo com array vazio correto para PostgreSQL
     const sql = "INSERT INTO servos (name, roles) VALUES ($1, $2) RETURNING id";
     
-    // Passamos o array vazio [] direto. A lib 'pg' converte para '{}' corretamente.
-    db.query(sql, [nome, []], (err, result) => {
+    db.query(sql, [nome || "Novo Servo", []], (err, result) => {
         if (err) {
             console.error("Erro ao inserir:", err);
             return res.status(500).send(err);
         }
         const novoId = result.rows[0].id;
 
-        // Retorna o objeto exatamente como o Frontend espera para atualizar a lista
         res.send({ 
             id: novoId, 
-            nome: nome, 
+            nome: nome || "Novo Servo", 
             funcoes: [] 
         });
     });
@@ -68,32 +64,23 @@ app.delete('/servos/:id', (req, res) => {
     });
 });
 
-// ATUALIZAR (PUT) - Corrigido erro de salvamento automático
+// ATUALIZAR (PUT)
 app.put('/servos/:id', (req, res) => {
     const { id } = req.params;
     let { funcoes } = req.body; 
     
-    // REMOVIDO: JSON.stringify (não deve ser usado com colunas tipo ARRAY no Postgres)
-    
-    // Garante que funcoes seja um array antes de enviar ao banco
-    if (!funcoes || !Array.isArray(funcoes)) {
-        funcoes = [];
-    }
+    // Garante que o que vai para o banco é um array
+    if (!Array.isArray(funcoes)) funcoes = [];
 
     const sql = "UPDATE servos SET roles = $1 WHERE id = $2";
     
     db.query(sql, [funcoes, id], (err, result) => {
-        if (err) {
-            console.error("Erro ao atualizar funções:", err);
-            return res.status(500).send(err);
-        }
-        res.send({ message: "Atualizado com sucesso" });
+        if (err) return res.status(500).send(err);
+        res.send({ message: "Atualizado" });
     });
 });
 
-// --- FIM DAS ROTAS DE API ---
-
-// 2. Rota Coringa para o Frontend (React Router)
+// Rota Coringa
 app.get(/.*/, (req, res) => {
     res.sendFile(path.join(__dirname, 'gerenciador-equipe', 'dist', 'index.html'));
 });
