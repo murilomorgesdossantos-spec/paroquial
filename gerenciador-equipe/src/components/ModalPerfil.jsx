@@ -6,6 +6,20 @@ const ModalPerfil = ({ servo, onClose }) => {
   const [novaFuncao, setNovaFuncao] = useState('');
   const [novaData, setNovaData] = useState('');
 
+  // Lista de funções oficiais para seleção
+  const funcoesDisponiveis = [
+    "Cerimonial",
+    "Turiferário",
+    "Naveteiro",
+    "Cruciferário",
+    "Librífero",
+    "Microfone",
+    "Altar",
+    "Intenções",
+    "Ofertório",
+    "Ceriferário"
+  ];
+
   useEffect(() => {
     fetchHistorico();
   }, [servo]);
@@ -23,13 +37,18 @@ const ModalPerfil = ({ servo, onClose }) => {
   };
 
   const adicionarManual = async () => {
-    if (!novaFuncao || !novaData) return alert("Preencha função e data");
+    if (!novaFuncao || !novaData) return alert("Selecione a função e a data");
     await fetch('https://escala-paroquial.onrender.com/historico/manual', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ servo_id: servo.id, funcao: novaFuncao, data_escala: novaData })
+      body: JSON.stringify({ 
+        servo_id: servo.id, 
+        funcao: novaFuncao, 
+        data_escala: novaData 
+      })
     });
     setNovaFuncao('');
+    setNovaData('');
     fetchHistorico();
   };
 
@@ -47,27 +66,51 @@ const ModalPerfil = ({ servo, onClose }) => {
         <div className="p-6">
           <h3 className="text-sm font-black text-slate-400 uppercase mb-4">Adicionar Registro Manual</h3>
           <div className="flex gap-2 mb-6">
-            <input type="text" placeholder="Função" className="flex-1 p-2 border rounded-lg text-sm" value={novaFuncao} onChange={e => setNovaFuncao(e.target.value)} />
-            <input type="date" className="p-2 border rounded-lg text-sm" value={novaData} onChange={e => setNovaData(e.target.value)} />
-            <button onClick={adicionarManual} className="bg-green-500 text-white p-2 rounded-lg"><Plus/></button>
+            {/* Campo de seleção atualizado */}
+            <select 
+              className="flex-1 p-2 border rounded-lg text-sm bg-white outline-none focus:ring-2 focus:ring-purple-500"
+              value={novaFuncao}
+              onChange={e => setNovaFuncao(e.target.value)}
+            >
+              <option value="">Função...</option>
+              {funcoesDisponiveis.map(f => (
+                <option key={f} value={f}>{f}</option>
+              ))}
+            </select>
+
+            <input 
+              type="date" 
+              className="p-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-purple-500" 
+              value={novaData} 
+              onChange={e => setNovaData(e.target.value)} 
+            />
+            
+            <button 
+              onClick={adicionarManual} 
+              className="bg-green-500 hover:bg-green-600 text-white p-2 rounded-lg transition-colors"
+            >
+              <Plus size={20}/>
+            </button>
           </div>
 
           <h3 className="text-sm font-black text-slate-400 uppercase mb-2">Últimas Participações</h3>
-          <div className="max-h-60 overflow-y-auto space-y-2">
+          <div className="max-h-60 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
             {historico.map(h => (
               <div key={h.id} className="flex justify-between items-center p-3 bg-slate-50 rounded-xl border border-slate-100">
                 <div>
                   <p className="font-bold text-slate-700 text-sm">{h.funcao}</p>
                   <p className="text-[10px] text-slate-400 flex items-center gap-1">
-                    <Calendar size={10}/> {new Date(h.data_escala).toLocaleDateString('pt-BR')}
+                    <Calendar size={10}/> {new Date(h.data_escala).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}
                   </p>
                 </div>
-                <button onClick={() => removerRegistro(h.id)} className="text-red-400 hover:text-red-600 p-1">
+                <button onClick={() => removerRegistro(h.id)} className="text-red-400 hover:text-red-600 p-1 transition-colors">
                   <Trash2 size={16}/>
                 </button>
               </div>
             ))}
-            {historico.length === 0 && <p className="text-center text-slate-400 py-4 text-sm italic">Nenhum registro encontrado.</p>}
+            {historico.length === 0 && (
+              <p className="text-center text-slate-400 py-4 text-sm italic">Nenhum registro encontrado.</p>
+            )}
           </div>
         </div>
       </div>
