@@ -72,7 +72,7 @@ app.put('/servos/:id', (req, res) => {
 // Isso resolve a tela branca e problemas de atualização da página.
 // Usamos /.*/ (sem aspas) que é uma Regex e funciona sempre
 app.get(/.*/, (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+    res.sendFile(path.join(__dirname, 'www', 'index.html'));
 });
 
 const PORT = process.env.PORT || 3001;

@@ -7,7 +7,7 @@ export default defineConfig({
   plugins: [react()],
   build: {
     // Isso diz: "Construa os arquivos e jogue eles na pasta public da raiz"
-    outDir: '../public',
+    outDir: '../www',
     emptyOutDir: true, // Limpa a pasta antes de criar novos arquivos
   }
 })
