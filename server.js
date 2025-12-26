@@ -8,11 +8,10 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
-// 1. CORREÇÃO PRINCIPAL:
-// Apontamos para a pasta onde o Vite cria o build (dentro da subpasta do projeto)
+// 1. Apontamos para a pasta onde o Vite cria o build
 app.use(express.static(path.join(__dirname, 'gerenciador-equipe', 'dist')));
 
-// --- SUAS ROTAS DE API (MANTIDAS IGUAIS) ---
+// --- SUAS ROTAS DE API CORRIGIDAS ---
 
 // BUSCAR (GET)
 app.get('/servos', (req, res) => {
@@ -26,12 +25,17 @@ app.get('/servos', (req, res) => {
     });
 });
 
-// ADICIONAR (POST)
+// ADICIONAR (POST) - CORRIGIDO
 app.post('/servos', (req, res) => {
     const { nome } = req.body; 
-    const sql = "INSERT INTO servos (name, roles) VALUES ($1, '[]') RETURNING id";
     
-    db.query(sql, [nome], (err, result) => {
+    // MUDANÇA 1: Trocamos '[]' fixo por $2 (um parâmetro)
+    // Isso evita o erro "malformed array literal"
+    const sql = "INSERT INTO servos (name, roles) VALUES ($1, $2) RETURNING id";
+    
+    // MUDANÇA 2: Passamos um array vazio [] real do Javascript no segundo parâmetro
+    // A biblioteca 'pg' vai converter isso automaticamente para '{}' pro Postgres
+    db.query(sql, [nome, []], (err, result) => {
         if (err) {
             console.error("Erro ao inserir:", err);
             return res.status(500).send(err);
@@ -51,24 +55,32 @@ app.delete('/servos/:id', (req, res) => {
     });
 });
 
-// ATUALIZAR (PUT)
+// ATUALIZAR (PUT) - CORRIGIDO
 app.put('/servos/:id', (req, res) => {
     const { id } = req.params;
-    const { funcoes } = req.body; 
-    const funcoesString = JSON.stringify(funcoes);
+    let { funcoes } = req.body; 
     
+    // MUDANÇA 3: REMOVEMOS O JSON.stringify!
+    // O banco precisa receber o array puro, não uma string.
+    
+    // Prevenção: Se por acaso vier null, garante que seja array vazio
+    if (!funcoes) funcoes = [];
+
     const sql = "UPDATE servos SET roles = $1 WHERE id = $2";
     
-    db.query(sql, [funcoesString, id], (err, result) => {
-        if (err) return res.status(500).send(err);
+    // Passamos 'funcoes' direto (o array puro)
+    db.query(sql, [funcoes, id], (err, result) => {
+        if (err) {
+            console.error("Erro ao atualizar:", err); // Adicionei log para ajudar
+            return res.status(500).send(err);
+        }
         res.send({ message: "Atualizado" });
     });
 });
 
 // --- FIM DAS ROTAS DE API ---
 
-// 2. CORREÇÃO DA ROTA CORINGA:
-// Se não for API, devolve o index.html que está lá na pasta dist
+// 2. Rota Coringa para o Frontend
 app.get(/.*/, (req, res) => {
     res.sendFile(path.join(__dirname, 'gerenciador-equipe', 'dist', 'index.html'));
 });
